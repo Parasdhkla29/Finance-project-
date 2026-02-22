@@ -221,15 +221,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 max-w-6xl mx-auto">
+    <div className="p-4 lg:p-6 space-y-4 max-w-6xl mx-auto">
 
-      {/* Health banner — Zone A */}
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+      {/* ── Zone A: Health banner ── */}
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${
         healthColor === 'emerald'
-          ? 'bg-emerald-500/10 border-emerald-500/25'
+          ? 'bg-emerald-500/8 border-emerald-500/20'
           : healthColor === 'amber'
-          ? 'bg-amber-500/10 border-amber-500/25'
-          : 'bg-red-500/10 border-red-500/25'
+          ? 'bg-amber-500/8 border-amber-500/20'
+          : 'bg-red-500/8 border-red-500/20'
       }`}>
         <div className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
           healthColor === 'emerald' ? 'bg-emerald-400' : healthColor === 'amber' ? 'bg-amber-400' : 'bg-red-400'
@@ -241,83 +241,100 @@ export default function DashboardPage() {
           }`}>{healthMsg}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-xs text-slate-400">Day {dayOfMonth} of {daysInMonth}</p>
-          <p className="text-xs text-slate-600">{monthPct}% through</p>
+          <p className="text-xs font-medium text-slate-400">Day {dayOfMonth}/{daysInMonth}</p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <div className="w-16 h-1 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-full bg-slate-500 rounded-full" style={{ width: `${monthPct}%` }} />
+            </div>
+            <span className="text-[10px] text-slate-600">{monthPct}%</span>
+          </div>
         </div>
       </div>
 
-      {/* Finance report guidance */}
+      {/* Finance guidance tips */}
       {financeGuidance.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {financeGuidance.map((tip, i) => (
-            <div key={i} className="flex items-start gap-2 px-3 py-2 bg-amber-500/8 border border-amber-500/20 rounded-lg">
+            <div key={i} className="flex items-start gap-2 px-3 py-2 bg-amber-500/6 border border-amber-500/15 rounded-xl">
               <span className="text-amber-400 text-xs mt-0.5 shrink-0">▲</span>
-              <p className="text-xs text-amber-300">{tip}</p>
+              <p className="text-xs text-amber-300/90">{tip}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* Hero metric — Net this month */}
-      <div className="px-1">
-        <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Net this month</p>
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <p className={`text-4xl font-bold tracking-tight ${stats.net >= 0 ? 'text-sky-400' : 'text-red-400'}`}>
-            {stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net, currency)}
-          </p>
-          <TrendBadge current={stats.net} prev={lastStats.net} />
-          {lastStats.net !== 0 && (
-            <span className="text-xs text-slate-500">vs {format(subMonths(now, 1), 'MMM')}</span>
-          )}
+      {/* ── Zone B: Hero + KPIs ── */}
+      <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-4">
+        {/* Net hero */}
+        <div>
+          <p className="text-[11px] text-slate-500 uppercase tracking-widest font-medium">Net this month</p>
+          <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+            <p className={`text-[2.5rem] font-extrabold tracking-tight leading-none ${stats.net >= 0 ? 'text-sky-400' : 'text-red-400'}`}>
+              {stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net, currency)}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <TrendBadge current={stats.net} prev={lastStats.net} />
+              {lastStats.net !== 0 && (
+                <span className="text-xs text-slate-600">vs {format(subMonths(now, 1), 'MMM')}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* KPI row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <KpiCard label="Income" to="/transactions">
+            <p className="text-lg font-bold text-emerald-400 mt-1 leading-none">{formatCurrency(stats.income, currency)}</p>
+            <div className="mt-1.5"><TrendBadge current={stats.income} prev={lastStats.income} /></div>
+          </KpiCard>
+          <KpiCard label="Expenses" to="/transactions">
+            <p className="text-lg font-bold text-red-400 mt-1 leading-none">{formatCurrency(stats.expenses, currency)}</p>
+            <div className="mt-1.5"><TrendBadge current={stats.expenses} prev={lastStats.expenses} inverse /></div>
+          </KpiCard>
+          <KpiCard label="Savings rate" to="/insights">
+            <p className={`text-lg font-bold mt-1 leading-none ${stats.savingsRate >= 20 ? 'text-emerald-400' : stats.savingsRate >= 10 ? 'text-amber-400' : 'text-red-400'}`}>
+              {stats.savingsRate.toFixed(0)}%
+            </p>
+            <div className="mt-1.5"><TrendBadge current={stats.savingsRate} prev={lastStats.savingsRate} /></div>
+          </KpiCard>
+          <KpiCard label="Budget health" to="/budgets">
+            {activeBudgets.length > 0 ? (
+              <>
+                <p className={`text-lg font-bold mt-1 leading-none ${
+                  budgetsOnTrack === activeBudgets.length ? 'text-emerald-400'
+                  : budgetsOnTrack >= activeBudgets.length / 2 ? 'text-amber-400'
+                  : 'text-red-400'
+                }`}>
+                  {budgetsOnTrack}<span className="text-slate-600 font-normal text-base">/{activeBudgets.length}</span>
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">on track</p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold text-slate-600 mt-1 leading-none">—</p>
+                <p className="text-[11px] text-sky-400 mt-1">Set budgets</p>
+              </>
+            )}
+          </KpiCard>
         </div>
       </div>
 
-      {/* KPI row — Zone B — all cards are clickable */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KpiCard label="Income" to="/transactions">
-          <p className="text-xl font-bold text-emerald-400 mt-1">{formatCurrency(stats.income, currency)}</p>
-          <div className="mt-1"><TrendBadge current={stats.income} prev={lastStats.income} /></div>
-        </KpiCard>
-        <KpiCard label="Expenses" to="/transactions">
-          <p className="text-xl font-bold text-red-400 mt-1">{formatCurrency(stats.expenses, currency)}</p>
-          <div className="mt-1"><TrendBadge current={stats.expenses} prev={lastStats.expenses} inverse /></div>
-        </KpiCard>
-        <KpiCard label="Savings rate" to="/insights">
-          <p className={`text-xl font-bold mt-1 ${stats.savingsRate >= 20 ? 'text-emerald-400' : stats.savingsRate >= 10 ? 'text-amber-400' : 'text-red-400'}`}>
-            {stats.savingsRate.toFixed(0)}%
-          </p>
-          <div className="mt-1"><TrendBadge current={stats.savingsRate} prev={lastStats.savingsRate} /></div>
-        </KpiCard>
-        <KpiCard label="Budget health" to="/budgets">
-          {activeBudgets.length > 0 ? (
-            <>
-              <p className={`text-xl font-bold mt-1 ${
-                budgetsOnTrack === activeBudgets.length ? 'text-emerald-400'
-                : budgetsOnTrack >= activeBudgets.length / 2 ? 'text-amber-400'
-                : 'text-red-400'
-              }`}>
-                {budgetsOnTrack}/{activeBudgets.length}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">on track</p>
-            </>
-          ) : (
-            <>
-              <p className="text-xl font-bold text-slate-500 mt-1">—</p>
-              <p className="text-xs text-sky-400 mt-0.5">Set up budgets</p>
-            </>
-          )}
-        </KpiCard>
+      {/* ── Zone C: Income vs Expenses chart (full-width, prominent) ── */}
+      <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-1">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-200">Income vs Expenses</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tap W · M · Q · Y to change period · ⋯ to compare</p>
+          </div>
+        </div>
+        <div className="mt-3">
+          <NetBalanceChart />
+        </div>
       </div>
 
-      {/* Charts — Zone C */}
+      {/* ── Zone D: Secondary charts row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Income vs Expenses</CardTitle>
-            <span className="text-xs text-slate-500">Last 6 months</span>
-          </CardHeader>
-          <NetBalanceChart />
-        </Card>
+        {/* Spending donut */}
         <Card>
           <CardHeader>
             <CardTitle>Spending by category</CardTitle>
@@ -325,117 +342,124 @@ export default function DashboardPage() {
           </CardHeader>
           <CategoryDonut />
         </Card>
-      </div>
 
-      {/* Goals summary */}
-      {activeGoals.length > 0 && (
-        <button
-          onClick={() => { window.location.href = '/goals'; }}
-          className="w-full text-left bg-slate-800 hover:bg-slate-700/70 border border-slate-700 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-          aria-label="View financial goals"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-slate-200">Financial Goals</p>
-            <span className="text-xs text-sky-400">View all →</span>
-          </div>
-          <div className="w-full bg-slate-700 rounded-full h-2 mb-1">
-            <div
-              className="h-2 rounded-full bg-sky-500 transition-all"
-              style={{ width: `${Math.min(goalsProgress, 100)}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-500">
-            {activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''} · {goalsProgress.toFixed(0)}% overall progress
-          </p>
-        </button>
-      )}
-
-      {/* Insights + upcoming bills — Zone D */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {insights.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Insights</CardTitle>
-              <Link to="/insights" className="text-xs text-sky-400 hover:text-sky-300">See all</Link>
-            </CardHeader>
-            <div className="space-y-2">
-              {insights.slice(0, 3).map((insight) => (
-                <InsightBanner key={insight.id} insight={insight} />
-              ))}
-            </div>
-          </Card>
-        )}
+        {/* Upcoming bills */}
         <Card>
           <CardHeader>
             <CardTitle>Upcoming bills</CardTitle>
-            <Link to="/subscriptions" className="text-xs text-sky-400 hover:text-sky-300">Manage</Link>
+            <Link to="/subscriptions" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">Manage</Link>
           </CardHeader>
           <UpcomingBills />
         </Card>
       </div>
 
-      {/* Secondary stats (conditional — only when data exists) */}
+      {/* ── Zone E: Goals summary ── */}
+      {activeGoals.length > 0 && (
+        <button
+          onClick={() => { window.location.href = '/goals'; }}
+          className="w-full text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          aria-label="View financial goals"
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <div>
+              <p className="text-sm font-semibold text-slate-200">Financial Goals</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{activeGoals.length} active · {goalsProgress.toFixed(0)}% overall</p>
+            </div>
+            <span className="text-xs text-sky-400">View all →</span>
+          </div>
+          <div className="w-full bg-slate-700/60 rounded-full h-1.5">
+            <div
+              className="h-1.5 rounded-full bg-gradient-to-r from-sky-500 to-sky-400 transition-all"
+              style={{ width: `${Math.min(goalsProgress, 100)}%` }}
+            />
+          </div>
+        </button>
+      )}
+
+      {/* ── Zone F: Insights ── */}
+      {insights.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Insights</CardTitle>
+            <Link to="/insights" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">See all</Link>
+          </CardHeader>
+          <div className="space-y-2">
+            {insights.slice(0, 3).map((insight) => (
+              <InsightBanner key={insight.id} insight={insight} />
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* ── Zone G: Secondary stats (subs / loans) ── */}
       {(monthlySubCost > 0 || totalOwed > 0 || totalBorrowed > 0) && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2.5">
           {monthlySubCost > 0 && (
             <button
               onClick={() => { window.location.href = '/subscriptions'; }}
-              className="text-left bg-slate-800 hover:bg-slate-700/70 border border-slate-700 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
               aria-label="View subscriptions"
             >
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Monthly subs</p>
-              <p className="text-base font-semibold text-amber-400 mt-1">{formatCurrency(monthlySubCost, currency)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{subscriptions.filter((s) => s.isActive).length} active</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Monthly subs</p>
+              <p className="text-sm font-bold text-amber-400 mt-1">{formatCurrency(monthlySubCost, currency)}</p>
+              <p className="text-[10px] text-slate-600 mt-0.5">{subscriptions.filter((s) => s.isActive).length} active</p>
             </button>
           )}
           {totalOwed > 0 && (
             <button
               onClick={() => { window.location.href = '/loans'; }}
-              className="text-left bg-slate-800 hover:bg-slate-700/70 border border-slate-700 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
               aria-label="View loans owed to you"
             >
-              <p className="text-xs text-slate-500 uppercase tracking-wide">Owed to you</p>
-              <p className="text-base font-semibold text-emerald-400 mt-1">{formatCurrency(totalOwed, currency)}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Owed to you</p>
+              <p className="text-sm font-bold text-emerald-400 mt-1">{formatCurrency(totalOwed, currency)}</p>
             </button>
           )}
           {totalBorrowed > 0 && (
             <button
               onClick={() => { window.location.href = '/loans'; }}
-              className="text-left bg-slate-800 hover:bg-slate-700/70 border border-slate-700 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
               aria-label="View loans you owe"
             >
-              <p className="text-xs text-slate-500 uppercase tracking-wide">You owe</p>
-              <p className="text-base font-semibold text-red-400 mt-1">{formatCurrency(totalBorrowed, currency)}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">You owe</p>
+              <p className="text-sm font-bold text-red-400 mt-1">{formatCurrency(totalBorrowed, currency)}</p>
             </button>
           )}
         </div>
       )}
 
-      {/* Recent transactions */}
+      {/* ── Zone H: Recent transactions ── */}
       <Card>
         <CardHeader>
           <CardTitle>Recent transactions</CardTitle>
-          <Link to="/transactions" className="text-xs text-sky-400 hover:text-sky-300">View all</Link>
+          <Link to="/transactions" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">View all</Link>
         </CardHeader>
         {transactions.length === 0 ? (
           <div className="py-8 text-center space-y-3">
             <p className="text-slate-500 text-sm">No transactions yet.</p>
             <Link
               to="/transactions"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium rounded-xl transition-colors"
             >
               <span aria-hidden="true">+</span> Add your first transaction
             </Link>
           </div>
         ) : (
-          <ul className="divide-y divide-slate-700/50" role="list">
+          <ul className="divide-y divide-slate-700/40" role="list">
             {transactions.slice(0, 5).map((txn) => (
-              <li key={txn.id} className="flex items-center justify-between py-2.5">
-                <div>
-                  <p className="text-sm font-medium text-slate-200">{txn.merchant ?? txn.category}</p>
-                  <p className="text-xs text-slate-500">{txn.category} · {txn.date}</p>
+              <li key={txn.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm ${
+                    txn.type === 'income' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+                  }`}>
+                    {txn.type === 'income' ? '↓' : '↑'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-200 truncate">{txn.merchant ?? txn.category}</p>
+                    <p className="text-[11px] text-slate-500">{txn.category} · {txn.date}</p>
+                  </div>
                 </div>
-                <span className={`text-sm font-semibold ${txn.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>
+                <span className={`text-sm font-semibold ml-3 shrink-0 ${txn.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>
                   {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amountMinorUnits, txn.currency)}
                 </span>
               </li>
@@ -443,6 +467,9 @@ export default function DashboardPage() {
           </ul>
         )}
       </Card>
+
+      {/* bottom padding for mobile FAB */}
+      <div className="h-4 lg:hidden" aria-hidden="true" />
     </div>
   );
 }
