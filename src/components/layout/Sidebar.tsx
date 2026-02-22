@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useUIStore } from '../../store/useUIStore';
 
@@ -65,15 +65,34 @@ function CogIcon() {
   );
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: <HomeIcon /> },
-  { to: '/transactions', label: 'Transactions', icon: <SwapIcon /> },
-  { to: '/loans', label: 'Loans', icon: <HandIcon /> },
-  { to: '/subscriptions', label: 'Subscriptions', icon: <RefreshIcon /> },
-  { to: '/budgets', label: 'Budgets', icon: <ChartIcon /> },
-  { to: '/insights', label: 'Insights', icon: <LightIcon /> },
-  { to: '/goals', label: 'Goals', icon: <TargetIcon /> },
-  { to: '/settings', label: 'Settings', icon: <CogIcon /> },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Now',
+    items: [
+      { to: '/dashboard', label: 'Dashboard', icon: <HomeIcon /> },
+    ],
+  },
+  {
+    label: 'This Month',
+    items: [
+      { to: '/transactions', label: 'Transactions', icon: <SwapIcon /> },
+      { to: '/budgets', label: 'Budgets', icon: <ChartIcon /> },
+      { to: '/subscriptions', label: 'Subscriptions', icon: <RefreshIcon /> },
+    ],
+  },
+  {
+    label: 'Long Term',
+    items: [
+      { to: '/goals', label: 'Goals', icon: <TargetIcon /> },
+      { to: '/loans', label: 'Loans', icon: <HandIcon /> },
+      { to: '/insights', label: 'Insights', icon: <LightIcon /> },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -96,7 +115,7 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
       aria-label="Main navigation"
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-2 mb-8">
+      <div className="flex items-center gap-2 px-2 mb-6">
         <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center shrink-0">
           <span className="text-white font-bold text-sm">P</span>
         </div>
@@ -106,27 +125,58 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
         </div>
       </div>
 
-      {/* Nav items */}
-      <ul className="flex flex-col gap-0.5 flex-1" role="list">
-        {NAV_ITEMS.map((item) => (
-          <li key={item.to}>
-            <NavLink
-              to={item.to}
-              onClick={() => mobile && setSidebarOpen(false)}
-              className={({ isActive }) =>
-                clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50',
-                )
-              }
-            >
-              {item.icon}
-              {item.label}
-            </NavLink>
+      {/* Grouped nav items */}
+      <ul className="flex flex-col gap-4 flex-1" role="list">
+        {NAV_GROUPS.map((group, gi) => (
+          <li key={group.label}>
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 mb-1">
+              {group.label}
+            </p>
+            <ul className="flex flex-col gap-0.5" role="list">
+              {group.items.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    onClick={() => mobile && setSidebarOpen(false)}
+                    className={({ isActive }) =>
+                      clsx(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50',
+                      )
+                    }
+                  >
+                    {item.icon}
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+            {gi < NAV_GROUPS.length - 1 && (
+              <div className="mt-4 border-t border-slate-800" />
+            )}
           </li>
         ))}
+
+        {/* Settings always at bottom */}
+        <li className="mt-auto">
+          <NavLink
+            to="/settings"
+            onClick={() => mobile && setSidebarOpen(false)}
+            className={({ isActive }) =>
+              clsx(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50',
+              )
+            }
+          >
+            <CogIcon />
+            Settings
+          </NavLink>
+        </li>
       </ul>
 
       {/* Privacy badge */}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 import { useGoalStore } from '../store/useGoalStore';
 import type { FinancialGoal } from '../core/types';
 import { formatCurrency, toMinor } from '../core/types';
@@ -91,6 +91,57 @@ const CAT_EMOJI: Record<string, string> = {
   custom: '🎯',
 };
 
+function GoalProjection({ goal }: { goal: FinancialGoal }) {
+  const now = new Date();
+  const remaining = goal.targetMinorUnits - goal.currentMinorUnits;
+
+  // Days since creation
+  const createdAt = parseISO(goal.createdAt);
+  const daysSinceCreation = Math.max(1, differenceInDays(now, createdAt));
+  const dailyRate = goal.currentMinorUnits / daysSinceCreation; // minor units per day
+
+  if (goal.targetDate) {
+    const targetDate = parseISO(goal.targetDate);
+    const daysToTarget = differenceInDays(targetDate, now);
+
+    if (daysToTarget <= 0) {
+      return (
+        <p className="text-xs text-red-400">Target date has passed</p>
+      );
+    }
+
+    const dailyNeeded = remaining / daysToTarget;
+    const monthlyNeeded = dailyNeeded * 30;
+    const onTrack = dailyRate >= dailyNeeded * 0.9;
+
+    return (
+      <div className="space-y-0.5">
+        <p className={`text-xs ${onTrack ? 'text-emerald-400' : 'text-amber-400'}`}>
+          {daysToTarget}d to target · Need {formatCurrency(monthlyNeeded, goal.currency)}/mo
+        </p>
+        {!onTrack && dailyRate > 0 && (
+          <p className="text-xs text-slate-500">
+            At current rate: {formatCurrency(dailyRate * 30, goal.currency)}/mo
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // No target date — project based on current saving rate
+  if (dailyRate > 0 && remaining > 0) {
+    const daysNeeded = remaining / dailyRate;
+    const projectedDate = new Date(now.getTime() + daysNeeded * 86400000);
+    return (
+      <p className="text-xs text-slate-500">
+        At current pace: {format(projectedDate, 'MMM yyyy')}
+      </p>
+    );
+  }
+
+  return null;
+}
+
 export default function GoalsPage() {
   const { goals, load, update, remove } = useGoalStore();
   const [showForm, setShowForm] = useState(false);
@@ -100,6 +151,11 @@ export default function GoalsPage() {
 
   const active = goals.filter((g) => !g.isAchieved && !g.deletedAt);
   const achieved = goals.filter((g) => g.isAchieved && !g.deletedAt);
+
+  function openAdd() {
+    setEditing(undefined);
+    setShowForm(true);
+  }
 
   function GoalCard({ goal }: { goal: FinancialGoal }) {
     const pct = goal.targetMinorUnits > 0
@@ -135,10 +191,14 @@ export default function GoalsPage() {
             style={{ width: `${Math.min(pct, 100)}%` }}
           />
         </div>
-        <p className="text-xs text-slate-500 mb-3">
-          {pct.toFixed(0)}% complete
-          {!goal.isAchieved && remaining > 0 && ` · ${formatCurrency(remaining, goal.currency)} to go`}
-        </p>
+
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-slate-500">
+            {pct.toFixed(0)}% complete
+            {!goal.isAchieved && remaining > 0 && ` · ${formatCurrency(remaining, goal.currency)} to go`}
+          </p>
+          {!goal.isAchieved && <GoalProjection goal={goal} />}
+        </div>
 
         {goal.notes && <p className="text-xs text-slate-400 mb-3 italic">{goal.notes}</p>}
 
@@ -166,14 +226,16 @@ export default function GoalsPage() {
           <h1 className="text-xl font-bold text-slate-100">Financial Goals</h1>
           <p className="text-slate-400 text-sm mt-0.5">Track your savings targets and milestones</p>
         </div>
-        <Button size="sm" icon={<span>+</span>} onClick={() => { setEditing(undefined); setShowForm(true); }}>Add Goal</Button>
+        <Button size="sm" icon={<span>+</span>} onClick={openAdd}>Add Goal</Button>
       </div>
 
       {goals.filter((g) => !g.deletedAt).length === 0 ? (
         <Card>
-          <p className="text-slate-500 text-sm text-center py-8">
-            No goals yet. Set a savings target to get started!
-          </p>
+          <div className="py-10 text-center space-y-3">
+            <p className="text-slate-400 text-sm font-medium">No goals set yet</p>
+            <p className="text-slate-500 text-xs max-w-xs mx-auto">Set a savings target — emergency fund, investment, or anything you're working toward.</p>
+            <Button onClick={openAdd} icon={<span>+</span>}>Set your first goal</Button>
+          </div>
         </Card>
       ) : (
         <>

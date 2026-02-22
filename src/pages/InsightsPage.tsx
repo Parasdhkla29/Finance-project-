@@ -7,13 +7,14 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from 'recharts';
 import { subMonths, startOfMonth, endOfMonth, format, isWithinInterval } from 'date-fns';
 import { generateInsights, type Insight } from '../core/insights';
 import { useTransactionStore } from '../store/useTransactionStore';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
 import { useLoanStore } from '../store/useLoanStore';
+import { useBudgetStore } from '../store/useBudgetStore';
+import { useGoalStore } from '../store/useGoalStore';
 import { formatCurrency, toMajor } from '../core/types';
 import { db } from '../core/db';
 import Card, { CardHeader, CardTitle } from '../components/ui/Card';
@@ -34,26 +35,161 @@ const INSIGHT_COLORS: Record<Insight['type'], 'warning' | 'success' | 'info' | '
   success: 'success',
 };
 
+interface FinanceReport {
+  savingsRate: number;
+  income: number;
+  expenses: number;
+  subMonthlyTotal: number;
+  subPctOfIncome: number;
+  activeLoansCount: number;
+  totalDebt: number;
+  overdueLoansCount: number;
+  budgetsTotal: number;
+  budgetsOverCount: number;
+  activeGoalsCount: number;
+  goalsProgress: number;
+}
+
+function ReportCard({
+  title,
+  value,
+  sub,
+  color,
+  to,
+}: {
+  title: string;
+  value: string;
+  sub?: string;
+  color: 'green' | 'red' | 'amber' | 'sky' | 'slate';
+  to: string;
+}) {
+  const colorMap = {
+    green: 'text-emerald-400',
+    red: 'text-red-400',
+    amber: 'text-amber-400',
+    sky: 'text-sky-400',
+    slate: 'text-slate-300',
+  };
+  return (
+    <Link
+      to={to}
+      className="block bg-slate-800 hover:bg-slate-700/70 border border-slate-700 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+    >
+      <p className="text-xs text-slate-500 uppercase tracking-wide">{title}</p>
+      <p className={`text-2xl font-bold mt-1 ${colorMap[color]}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+    </Link>
+  );
+}
+
+function FinanceReportPanel({ report }: { report: FinanceReport }) {
+  const tips: Array<{ text: string; severity: 'ok' | 'warn' | 'bad'; to: string }> = [];
+
+  // Savings rate
+  if (report.income === 0) {
+    tips.push({ text: 'Add income transactions to see your savings rate.', severity: 'warn', to: '/transactions' });
+  } else if (report.savingsRate < 0) {
+    tips.push({ text: `You're spending ${Math.abs(report.savingsRate).toFixed(0)}% more than you earn. Reduce expenses or add income.`, severity: 'bad', to: '/transactions' });
+  } else if (report.savingsRate < 10) {
+    tips.push({ text: `Savings rate is ${report.savingsRate.toFixed(0)}%. Aim for 20%+ to build a financial cushion.`, severity: 'warn', to: '/insights' });
+  } else if (report.savingsRate >= 20) {
+    tips.push({ text: `Great savings rate of ${report.savingsRate.toFixed(0)}%! Consider putting surplus into goals or investments.`, severity: 'ok', to: '/goals' });
+  }
+
+  // Subscriptions
+  if (report.income > 0 && report.subPctOfIncome > 25) {
+    tips.push({ text: `Subscriptions are ${report.subPctOfIncome.toFixed(0)}% of income (${formatCurrency(report.subMonthlyTotal, 'GBP')}/mo). Consider cancelling unused ones.`, severity: 'bad', to: '/subscriptions' });
+  } else if (report.income > 0 && report.subPctOfIncome > 15) {
+    tips.push({ text: `Subscriptions are ${report.subPctOfIncome.toFixed(0)}% of income. Review to keep below 15%.`, severity: 'warn', to: '/subscriptions' });
+  }
+
+  // Loans
+  if (report.overdueLoansCount > 0) {
+    tips.push({ text: `${report.overdueLoansCount} overdue loan${report.overdueLoansCount > 1 ? 's' : ''}. Record payments or update due dates.`, severity: 'bad', to: '/loans' });
+  } else if (report.activeLoansCount > 0) {
+    tips.push({ text: `${report.activeLoansCount} active loan${report.activeLoansCount > 1 ? 's' : ''} totalling ${formatCurrency(report.totalDebt, 'GBP')}. Use the Avalanche or Snowball method below to pay efficiently.`, severity: 'warn', to: '/loans' });
+  }
+
+  // Budgets
+  if (report.budgetsTotal === 0) {
+    tips.push({ text: 'No budgets set. Create spending limits to control monthly expenses.', severity: 'warn', to: '/budgets' });
+  } else if (report.budgetsOverCount > 0) {
+    tips.push({ text: `${report.budgetsOverCount} of ${report.budgetsTotal} budgets exceeded this month.`, severity: 'bad', to: '/budgets' });
+  } else {
+    tips.push({ text: `All ${report.budgetsTotal} budgets on track.`, severity: 'ok', to: '/budgets' });
+  }
+
+  // Goals
+  if (report.activeGoalsCount === 0) {
+    tips.push({ text: 'No financial goals set. Setting targets motivates consistent saving.', severity: 'warn', to: '/goals' });
+  } else if (report.goalsProgress > 75) {
+    tips.push({ text: `${report.goalsProgress.toFixed(0)}% toward your goals — nearly there!`, severity: 'ok', to: '/goals' });
+  }
+
+  const severityStyle = {
+    ok: { border: 'border-emerald-500/20 bg-emerald-500/5', text: 'text-emerald-300', dot: 'bg-emerald-400' },
+    warn: { border: 'border-amber-500/20 bg-amber-500/5', text: 'text-amber-300', dot: 'bg-amber-400' },
+    bad: { border: 'border-red-500/20 bg-red-500/8', text: 'text-red-300', dot: 'bg-red-400' },
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Finance Report</CardTitle><span className="text-xs text-slate-500">This month</span></CardHeader>
+      <div className="space-y-2">
+        {tips.map((tip, i) => {
+          const s = severityStyle[tip.severity];
+          return (
+            <Link
+              key={i}
+              to={tip.to}
+              className={`flex items-start gap-3 p-3 rounded-lg border ${s.border} hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500`}
+            >
+              <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
+              <p className={`text-xs leading-relaxed ${s.text}`}>{tip.text}</p>
+              <span className="ml-auto text-xs text-slate-500 shrink-0">→</span>
+            </Link>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export default function InsightsPage() {
   const { transactions, load: loadTxns } = useTransactionStore();
   const { subscriptions, load: loadSubs } = useSubscriptionStore();
   const { loans, load: loadLoans } = useLoanStore();
+  const { budgets, load: loadBudgets } = useBudgetStore();
+  const { goals, load: loadGoals } = useGoalStore();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthData[]>([]);
   const [topCategories, setTopCategories] = useState<Array<{ category: string; amount: number }>>([]);
   const [savingsRate, setSavingsRate] = useState(0);
   const [cashFlow, setCashFlow] = useState(0);
+  const [report, setReport] = useState<FinanceReport>({
+    savingsRate: 0, income: 0, expenses: 0,
+    subMonthlyTotal: 0, subPctOfIncome: 0,
+    activeLoansCount: 0, totalDebt: 0, overdueLoansCount: 0,
+    budgetsTotal: 0, budgetsOverCount: 0,
+    activeGoalsCount: 0, goalsProgress: 0,
+  });
 
   useEffect(() => {
     loadTxns();
     loadSubs();
     loadLoans();
+    loadBudgets();
+    loadGoals();
   }, []);
 
   useEffect(() => {
     generateInsights().then(setInsights).catch(console.error);
     buildCharts();
   }, [transactions, subscriptions, loans]);
+
+  useEffect(() => {
+    buildReport();
+  }, [transactions, subscriptions, loans, budgets, goals]);
 
   async function buildCharts() {
     const now = new Date();
@@ -84,8 +220,9 @@ export default function InsightsPage() {
     setMonthlyData(points);
 
     // Current month stats
-    const currentStart = startOfMonth(now);
-    const currentEnd = endOfMonth(now);
+    const now2 = new Date();
+    const currentStart = startOfMonth(now2);
+    const currentEnd = endOfMonth(now2);
     const currentTxns = transactions.filter(
       (t) => !t.deletedAt && isWithinInterval(new Date(t.date), { start: currentStart, end: currentEnd }),
     );
@@ -120,6 +257,58 @@ export default function InsightsPage() {
     setCashFlow(totalIncome - monthSubs);
   }
 
+  function buildReport() {
+    const now = new Date();
+    const currentStart = startOfMonth(now);
+    const currentEnd = endOfMonth(now);
+    const currentTxns = transactions.filter(
+      (t) => !t.deletedAt && isWithinInterval(new Date(t.date), { start: currentStart, end: currentEnd }),
+    );
+    const income = currentTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0);
+    const expenses = currentTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0);
+    const sr = income > 0 ? ((income - expenses) / income) * 100 : 0;
+
+    const activeSubs = subscriptions.filter((s) => s.isActive && !s.deletedAt);
+    const subMonthlyTotal = activeSubs.reduce((s, sub) => {
+      const monthly =
+        sub.billingCycle === 'weekly' ? sub.amountMinorUnits * 4.33
+        : sub.billingCycle === 'quarterly' ? sub.amountMinorUnits / 3
+        : sub.billingCycle === 'annual' ? sub.amountMinorUnits / 12
+        : sub.amountMinorUnits;
+      return s + monthly;
+    }, 0);
+
+    const activeLoans = loans.filter((l) => l.status !== 'settled' && !l.deletedAt);
+    const overdueLoans = activeLoans.filter((l) => l.dueDate && new Date(l.dueDate) < now);
+    const totalDebt = activeLoans.reduce((s, l) => s + l.remainingMinorUnits, 0);
+
+    const activeBudgets = budgets.filter((b) => b.isActive && !b.deletedAt);
+    const spentByCategory: Record<string, number> = {};
+    for (const t of currentTxns.filter((t) => t.type === 'expense')) {
+      spentByCategory[t.category] = (spentByCategory[t.category] ?? 0) + t.amountMinorUnits;
+    }
+    const budgetsOver = activeBudgets.filter((b) => (spentByCategory[b.category] ?? 0) > b.amountMinorUnits);
+
+    const activeGoals = goals.filter((g) => !g.isAchieved && !g.deletedAt);
+    const totalTarget = activeGoals.reduce((s, g) => s + g.targetMinorUnits, 0);
+    const totalCurrent = activeGoals.reduce((s, g) => s + g.currentMinorUnits, 0);
+
+    setReport({
+      savingsRate: sr,
+      income,
+      expenses,
+      subMonthlyTotal,
+      subPctOfIncome: income > 0 ? (subMonthlyTotal / income) * 100 : 0,
+      activeLoansCount: activeLoans.length,
+      totalDebt,
+      overdueLoansCount: overdueLoans.length,
+      budgetsTotal: activeBudgets.length,
+      budgetsOverCount: budgetsOver.length,
+      activeGoalsCount: activeGoals.length,
+      goalsProgress: totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0,
+    });
+  }
+
   // Debt payoff order (avalanche = highest interest first)
   const activeLoans = loans.filter((l) => l.status !== 'settled' && !l.deletedAt);
   const avalanche = [...activeLoans].sort(
@@ -135,30 +324,33 @@ export default function InsightsPage() {
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
       <h1 className="text-xl font-bold text-slate-100">Insights & Analytics</h1>
 
-      {/* KPIs */}
+      {/* KPIs — all clickable links */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Savings Rate</p>
-          <p className={`text-2xl font-bold mt-1 ${savingsRate >= 20 ? 'text-emerald-400' : savingsRate >= 10 ? 'text-amber-400' : 'text-red-400'}`}>
-            {savingsRate.toFixed(1)}%
-          </p>
-          <p className="text-xs text-slate-500 mt-1">Target: 20%+</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Projected Cash Flow</p>
-          <p className={`text-xl font-bold mt-1 ${cashFlow >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {formatCurrency(cashFlow, 'GBP')}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">Income minus subs</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Active Loans</p>
-          <p className="text-2xl font-bold text-slate-100 mt-1">{activeLoans.length}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            {formatCurrency(activeLoans.reduce((s, l) => s + l.remainingMinorUnits, 0), 'GBP')} total
-          </p>
-        </Card>
+        <ReportCard
+          title="Savings Rate"
+          value={`${savingsRate.toFixed(1)}%`}
+          sub="Target: 20%+"
+          color={savingsRate >= 20 ? 'green' : savingsRate >= 10 ? 'amber' : 'red'}
+          to="/transactions"
+        />
+        <ReportCard
+          title="Projected Cash Flow"
+          value={formatCurrency(cashFlow, 'GBP')}
+          sub="Income minus subs"
+          color={cashFlow >= 0 ? 'green' : 'red'}
+          to="/subscriptions"
+        />
+        <ReportCard
+          title="Active Loans"
+          value={String(activeLoans.length)}
+          sub={activeLoans.length > 0 ? `${formatCurrency(activeLoans.reduce((s, l) => s + l.remainingMinorUnits, 0), 'GBP')} total` : 'No active loans'}
+          color={activeLoans.length === 0 ? 'green' : 'amber'}
+          to="/loans"
+        />
       </div>
+
+      {/* Finance Report — comprehensive guidance */}
+      <FinanceReportPanel report={report} />
 
       {/* All insights */}
       {insights.length > 0 && (

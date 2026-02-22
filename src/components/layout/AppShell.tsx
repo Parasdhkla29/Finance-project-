@@ -1,8 +1,10 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useUIStore, applyTheme } from '../../store/useUIStore';
+import Modal from '../ui/Modal';
+import TransactionForm from '../transactions/TransactionForm';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -19,6 +21,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { theme, sidebarOpen, setSidebarOpen } = useUIStore();
   const location = useLocation();
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'PrivyLedger';
+  const [showFab, setShowFab] = useState(false);
 
   // Apply theme on mount and whenever it changes
   useEffect(() => {
@@ -60,6 +63,23 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Mobile FAB — quick add transaction */}
+      <button
+        onClick={() => setShowFab(true)}
+        className="fixed bottom-6 right-4 z-30 lg:hidden w-14 h-14 bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white rounded-full shadow-lg shadow-sky-500/30 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        aria-label="Add transaction"
+        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
+      </button>
+
+      {/* FAB modal */}
+      <Modal open={showFab} onClose={() => setShowFab(false)} title="Add Transaction">
+        <TransactionForm onDone={() => setShowFab(false)} />
+      </Modal>
     </div>
   );
 }
