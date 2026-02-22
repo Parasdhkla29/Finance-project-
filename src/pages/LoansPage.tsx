@@ -142,7 +142,7 @@ export default function LoansPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Loan | undefined>();
   const [payingLoan, setPayingLoan] = useState<Loan | undefined>();
-  const [filterStatus, setFilterStatus] = useState<string>('active');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => { load(); }, []);
 

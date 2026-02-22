@@ -319,6 +319,35 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Quick-stats row: Monthly Subs + You Owe ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => { window.location.href = '/subscriptions'; }}
+          className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          aria-label="View subscriptions"
+        >
+          <p className="text-[11px] text-slate-500 uppercase tracking-widest font-medium">Monthly subs</p>
+          <p className="text-2xl font-bold text-amber-400 mt-1.5 leading-none">
+            {formatCurrency(monthlySubCost, currency)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1.5">{subscriptions.filter((s) => s.isActive).length} active subscriptions</p>
+        </button>
+
+        <button
+          onClick={() => { window.location.href = '/loans'; }}
+          className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          aria-label="View loans you owe"
+        >
+          <p className="text-[11px] text-slate-500 uppercase tracking-widest font-medium">You owe</p>
+          <p className={`text-2xl font-bold mt-1.5 leading-none ${totalBorrowed > 0 ? 'text-red-400' : 'text-slate-600'}`}>
+            {totalBorrowed > 0 ? formatCurrency(totalBorrowed, currency) : '—'}
+          </p>
+          <p className="text-xs text-slate-500 mt-1.5">
+            {totalBorrowed > 0 ? `${activeLoans.filter((l) => l.direction === 'borrowed').length} active loan${activeLoans.filter((l) => l.direction === 'borrowed').length !== 1 ? 's' : ''}` : 'No active loans'}
+          </p>
+        </button>
+      </div>
+
       {/* ── Zone C: Income vs Expenses chart (full-width, prominent) ── */}
       <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-1">
@@ -389,43 +418,6 @@ export default function DashboardPage() {
             ))}
           </div>
         </Card>
-      )}
-
-      {/* ── Zone G: Secondary stats (subs / loans) ── */}
-      {(monthlySubCost > 0 || totalOwed > 0 || totalBorrowed > 0) && (
-        <div className="grid grid-cols-3 gap-2.5">
-          {monthlySubCost > 0 && (
-            <button
-              onClick={() => { window.location.href = '/subscriptions'; }}
-              className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-              aria-label="View subscriptions"
-            >
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Monthly subs</p>
-              <p className="text-sm font-bold text-amber-400 mt-1">{formatCurrency(monthlySubCost, currency)}</p>
-              <p className="text-[10px] text-slate-600 mt-0.5">{subscriptions.filter((s) => s.isActive).length} active</p>
-            </button>
-          )}
-          {totalOwed > 0 && (
-            <button
-              onClick={() => { window.location.href = '/loans'; }}
-              className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-              aria-label="View loans owed to you"
-            >
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Owed to you</p>
-              <p className="text-sm font-bold text-emerald-400 mt-1">{formatCurrency(totalOwed, currency)}</p>
-            </button>
-          )}
-          {totalBorrowed > 0 && (
-            <button
-              onClick={() => { window.location.href = '/loans'; }}
-              className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-              aria-label="View loans you owe"
-            >
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide">You owe</p>
-              <p className="text-sm font-bold text-red-400 mt-1">{formatCurrency(totalBorrowed, currency)}</p>
-            </button>
-          )}
-        </div>
       )}
 
       {/* ── Zone H: Recent transactions ── */}
