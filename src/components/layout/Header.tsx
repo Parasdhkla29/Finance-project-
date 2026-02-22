@@ -12,7 +12,11 @@ export default function Header({ title }: { title?: string }) {
   const { toggleSidebar } = useUIStore();
 
   return (
-    <header className="flex items-center gap-3 h-14 px-4 border-b border-slate-700 bg-slate-900 shrink-0 lg:hidden">
+    <header
+      className="flex flex-col border-b border-slate-700 bg-slate-900 shrink-0 lg:hidden"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="flex items-center gap-3 h-14 px-4">
       <button
         onClick={toggleSidebar}
         className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
@@ -25,6 +29,7 @@ export default function Header({ title }: { title?: string }) {
           <span className="text-white font-bold text-xs">P</span>
         </div>
         <span className="text-slate-100 font-semibold text-sm">{title ?? 'PrivyLedger'}</span>
+      </div>
       </div>
     </header>
   );

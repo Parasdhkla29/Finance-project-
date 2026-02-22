@@ -28,7 +28,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh bg-slate-950 text-slate-100 overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-60 xl:w-64 shrink-0 flex-col bg-slate-900 border-r border-slate-700">
+      <aside
+        className="hidden lg:flex lg:w-60 xl:w-64 shrink-0 flex-col bg-slate-900 border-r border-slate-700"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingLeft: 'env(safe-area-inset-left)' }}
+      >
         <Sidebar />
       </aside>
 
@@ -49,7 +52,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header title={pageTitle} />
-        <main className="flex-1 overflow-y-auto" id="main-content">
+        <main
+          className="flex-1 overflow-y-auto"
+          id="main-content"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           {children}
         </main>
       </div>

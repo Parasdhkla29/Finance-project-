@@ -87,8 +87,12 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
     <nav
       className={clsx(
         'flex flex-col h-full',
-        mobile ? 'px-4 py-6' : 'px-3 py-6',
+        mobile ? 'px-4' : 'px-3 py-6',
       )}
+      style={mobile ? {
+        paddingTop: 'max(env(safe-area-inset-top), 1.5rem)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)',
+      } : undefined}
       aria-label="Main navigation"
     >
       {/* Logo */}

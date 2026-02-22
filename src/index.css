@@ -16,6 +16,30 @@ body {
   background-color: #020617;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* iOS: remove tap flash, prevent body bounce, prevent font size adjustment */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+/* iOS: remove 300ms tap delay on all interactive elements */
+* {
+  touch-action: manipulation;
+}
+
+/* iOS: momentum scrolling for scrollable containers */
+.overflow-y-auto,
+.overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS: prevent auto-zoom when focusing inputs (must be ≥ 16px) */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 #root {
