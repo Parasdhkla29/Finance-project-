@@ -9,6 +9,7 @@ import { useSubscriptionStore } from '../store/useSubscriptionStore';
 import { useLoanStore } from '../store/useLoanStore';
 import { useBudgetStore } from '../store/useBudgetStore';
 import { useGoalStore } from '../store/useGoalStore';
+import { useUIStore } from '../store/useUIStore';
 import Card, { CardHeader, CardTitle } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import NetBalanceChart from '../components/dashboard/NetBalanceChart';
@@ -21,6 +22,18 @@ interface MonthStats {
   net: number;
   savingsRate: number;
 }
+
+interface AccountMonthStat {
+  id: string;
+  name: string;
+  color: string;
+  currency: string;
+  income: number;
+  expenses: number;
+  net: number;
+}
+
+const QUICK_CURRENCIES = ['GBP', 'INR'] as const;
 
 function TrendBadge({ current, prev, inverse = false }: { current: number; prev: number; inverse?: boolean }) {
   if (prev === 0 || (current === 0 && prev === 0)) return null;
@@ -90,9 +103,11 @@ export default function DashboardPage() {
   const { loans, load: loadLoans } = useLoanStore();
   const { budgets, load: loadBudgets } = useBudgetStore();
   const { goals, load: loadGoals } = useGoalStore();
+  const { currency, setCurrency } = useUIStore();
 
   const [stats, setStats] = useState<MonthStats>({ income: 0, expenses: 0, net: 0, savingsRate: 0 });
   const [lastStats, setLastStats] = useState<MonthStats>({ income: 0, expenses: 0, net: 0, savingsRate: 0 });
+  const [accountStats, setAccountStats] = useState<AccountMonthStat[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [spentByCategory, setSpentByCategory] = useState<Record<string, number>>({});
 
@@ -123,6 +138,25 @@ export default function DashboardPage() {
       savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
     });
 
+    // Per-account net for this month
+    const activeAccs = accounts.filter((a) => !a.isArchived && !a.deletedAt);
+    setAccountStats(
+      activeAccs.map((acc) => {
+        const accTxns = monthTxns.filter((t) => t.accountId === acc.id);
+        const accIncome = accTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0);
+        const accExpenses = accTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0);
+        return {
+          id: acc.id,
+          name: acc.name,
+          color: acc.color,
+          currency: acc.currency,
+          income: accIncome,
+          expenses: accExpenses,
+          net: accIncome - accExpenses,
+        };
+      }),
+    );
+
     // Spent by category this month
     const catMap: Record<string, number> = {};
     for (const t of monthTxns.filter((t) => t.type === 'expense')) {
@@ -145,7 +179,7 @@ export default function DashboardPage() {
       net: lastIncome - lastExpenses,
       savingsRate: lastIncome > 0 ? ((lastIncome - lastExpenses) / lastIncome) * 100 : 0,
     });
-  }, [transactions]);
+  }, [transactions, accounts]);
 
   useEffect(() => {
     generateInsights().then(setInsights).catch(console.error);
@@ -176,7 +210,11 @@ export default function DashboardPage() {
       ? `Saving ${stats.savingsRate.toFixed(0)}% · Aim for 15%+`
       : 'Spending more than you earn this month';
 
-  const currency = accounts[0]?.currency ?? 'GBP';
+  // Sum of account nets for the currently selected display currency
+  const accountsInCurrency = accountStats.filter((a) => a.currency === currency);
+  const totalForCurrency = accountsInCurrency.length > 0
+    ? accountsInCurrency.reduce((s, a) => s + a.net, 0)
+    : stats.net;
 
   const activeLoans = loans.filter((l) => l.status !== 'settled' && !l.deletedAt);
   const totalOwed = activeLoans
@@ -265,23 +303,77 @@ export default function DashboardPage() {
 
       {/* ── Zone B: Hero + KPIs ── */}
       <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-4">
-        {/* Net hero */}
-        <div>
+
+        {/* ── Header row: label + currency quick-toggle ── */}
+        <div className="flex items-center justify-between">
           <p className="text-[11px] text-slate-500 uppercase tracking-widest font-medium">Net this month</p>
-          <div className="flex items-baseline gap-3 mt-1 flex-wrap">
-            <p className={`text-[2.5rem] font-extrabold tracking-tight leading-none ${stats.net >= 0 ? 'text-sky-400' : 'text-red-400'}`}>
-              {stats.net >= 0 ? '+' : ''}{formatCurrency(stats.net, currency)}
-            </p>
+          <div className="flex gap-1 bg-slate-900/70 rounded-lg p-0.5">
+            {QUICK_CURRENCIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCurrency(c)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                  currency === c
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-200'
+                }`}
+                aria-pressed={currency === c}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Per-account breakdown (H2 rows) ── */}
+        {accountStats.length > 0 && (
+          <div className="space-y-2.5">
+            {accountStats.map((acc) => (
+              <div key={acc.id} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: acc.color }}
+                    aria-hidden="true"
+                  />
+                  <h2 className="text-sm font-medium text-slate-400 truncate">{acc.name}</h2>
+                  <span className="text-[10px] text-slate-600 uppercase shrink-0">{acc.currency}</span>
+                </div>
+                <h2 className={`text-base font-semibold shrink-0 tabular-nums ${
+                  acc.net > 0 ? 'text-emerald-400' : acc.net < 0 ? 'text-red-400' : 'text-slate-500'
+                }`}>
+                  {acc.net > 0 ? '+' : ''}{formatCurrency(acc.net, acc.currency)}
+                </h2>
+              </div>
+            ))}
+            {/* divider before total */}
+            <div className="border-t border-slate-700/50" />
+          </div>
+        )}
+
+        {/* ── Grand total (H1) ── */}
+        <div>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <h1 className={`text-[2.75rem] font-extrabold tracking-tight leading-none ${
+              totalForCurrency >= 0 ? 'text-sky-400' : 'text-red-400'
+            }`}>
+              {totalForCurrency >= 0 ? '+' : ''}{formatCurrency(totalForCurrency, currency)}
+            </h1>
             <div className="flex items-center gap-1.5">
-              <TrendBadge current={stats.net} prev={lastStats.net} />
+              <TrendBadge current={totalForCurrency} prev={lastStats.net} />
               {lastStats.net !== 0 && (
                 <span className="text-xs text-slate-600">vs {format(subMonths(now, 1), 'MMM')}</span>
               )}
             </div>
           </div>
+          {accountsInCurrency.length === 0 && accountStats.length > 0 && (
+            <p className="text-[11px] text-slate-600 mt-1">
+              No {currency} accounts — add one in Settings to see a {currency} total
+            </p>
+          )}
         </div>
 
-        {/* KPI row */}
+        {/* ── KPI row ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <KpiCard label="Income" to="/transactions">
             <p className="text-lg font-bold text-emerald-400 mt-1 leading-none">{formatCurrency(stats.income, currency)}</p>
