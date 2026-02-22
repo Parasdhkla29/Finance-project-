@@ -46,7 +46,7 @@ interface AccountFormData {
 
 export default function SettingsPage() {
   const { theme, currency, setTheme, setCurrency } = useUIStore();
-  const { accounts, load: loadAccounts, add: addAccount } = useAccountStore();
+  const { accounts, load: loadAccounts, add: addAccount, remove: removeAccount } = useAccountStore();
 
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -61,6 +61,7 @@ export default function SettingsPage() {
   const [decryptInput, setDecryptInput] = useState('');
   const [decryptResult, setDecryptResult] = useState<string | null>(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
+  const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
 
   const { register: regAccount, handleSubmit: handleAccountSubmit, formState: { isSubmitting: isAddingAccount }, reset: resetAccount } = useForm<AccountFormData>({
     defaultValues: { name: '', type: 'checking', currency: 'GBP', color: '#0ea5e9' },
@@ -147,6 +148,13 @@ export default function SettingsPage() {
     window.location.reload();
   }
 
+  async function handleDeleteAccount() {
+    if (!deleteAccountId) return;
+    await removeAccount(deleteAccountId);
+    setDeleteAccountId(null);
+    loadAccounts();
+  }
+
   async function handleAddAccount(data: AccountFormData) {
     await addAccount({
       name: data.name,
@@ -210,9 +218,18 @@ export default function SettingsPage() {
             {accounts.filter((a) => !a.isArchived && !a.deletedAt).map((a) => (
               <li key={a.id} className="flex items-center gap-3 py-2.5">
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} aria-hidden="true" />
-                <span className="text-sm text-slate-200 flex-1">{a.name}</span>
+                <span className="text-sm text-slate-200 flex-1 truncate">{a.name}</span>
                 <Badge variant="info">{a.type}</Badge>
                 <Badge>{a.currency}</Badge>
+                <button
+                  onClick={() => setDeleteAccountId(a.id)}
+                  className="ml-1 p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
+                  aria-label={`Delete account ${a.name}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                    <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </li>
             ))}
           </ul>
@@ -381,6 +398,32 @@ export default function SettingsPage() {
               Delete Everything
             </Button>
             <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Account confirmation modal */}
+      <Modal
+        open={!!deleteAccountId}
+        onClose={() => setDeleteAccountId(null)}
+        title="Delete Account?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-400">
+            This will remove{' '}
+            <strong className="text-slate-200">
+              {accounts.find((a) => a.id === deleteAccountId)?.name ?? 'this account'}
+            </strong>{' '}
+            from your list. Existing transactions linked to it are preserved.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="danger" className="flex-1" onClick={handleDeleteAccount}>
+              Delete
+            </Button>
+            <Button variant="ghost" onClick={() => setDeleteAccountId(null)}>
+              Cancel
+            </Button>
           </div>
         </div>
       </Modal>

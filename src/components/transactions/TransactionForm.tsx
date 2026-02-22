@@ -101,9 +101,8 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
     onDone();
   }
 
-  const accountOptions = accounts
-    .filter((a) => !a.isArchived && !a.deletedAt)
-    .map((a) => ({ value: a.id, label: a.name }));
+  const activeAccounts = accounts.filter((a) => !a.isArchived && !a.deletedAt);
+  const accountOptions = activeAccounts.map((a) => ({ value: a.id, label: a.name }));
 
   const categoryOptions = ['', ...ALL_CATEGORIES].map((c) => ({
     value: c,
@@ -112,11 +111,37 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <Select
-        label="Type"
-        options={TYPE_OPTIONS}
-        {...register('type', { required: true })}
-      />
+      {/* Type + Account — top row so you pick what and where immediately */}
+      <div className={activeAccounts.length > 1 ? 'grid grid-cols-2 gap-3' : ''}>
+        <Select
+          label="Type"
+          options={TYPE_OPTIONS}
+          {...register('type', { required: true })}
+        />
+        {activeAccounts.length > 1 && (
+          <div>
+            <Select
+              label="Account"
+              options={accountOptions}
+              {...register('accountId')}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Single account — still show it for clarity, full width */}
+      {activeAccounts.length === 1 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60 border border-slate-700/60 rounded-xl">
+          <span
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            style={{ backgroundColor: activeAccounts[0].color }}
+            aria-hidden="true"
+          />
+          <span className="text-xs text-slate-400">Account:</span>
+          <span className="text-xs font-medium text-slate-200">{activeAccounts[0].name}</span>
+          <span className="ml-auto text-[10px] text-slate-600 uppercase tracking-wide">{activeAccounts[0].currency}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Input
@@ -152,14 +177,6 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
         options={categoryOptions}
         {...register('category')}
       />
-
-      {accountOptions.length > 0 && (
-        <Select
-          label="Account"
-          options={accountOptions}
-          {...register('accountId')}
-        />
-      )}
 
       <Select
         label="Payment Method"
