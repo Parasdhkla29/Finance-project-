@@ -129,19 +129,23 @@ export default function TransactionsPage() {
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium text-slate-200 truncate">
+                  <p className={`text-sm font-medium truncate ${txn.paymentTiming === 'future' ? 'text-slate-400' : 'text-slate-200'}`}>
                     {txn.merchant ?? txn.category}
                   </p>
                   <TypeBadge type={txn.type} />
+                  {txn.paymentTiming === 'future' && (
+                    <Badge variant="info">⏳ Scheduled</Badge>
+                  )}
                   {txn.isRecurring && (
                     <Badge variant="purple">Recurring</Badge>
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {txn.category}
-                  {txn.merchant && txn.merchant !== txn.category ? '' : ''}
                   {' · '}
-                  {format(new Date(txn.date), 'd MMM yyyy')}
+                  {txn.paymentTiming === 'future'
+                    ? `Expected ${format(new Date(txn.date), 'd MMM yyyy')}`
+                    : format(new Date(txn.date), 'd MMM yyyy')}
                   {txn.paymentMethod && ` · ${txn.paymentMethod.replace('_', ' ')}`}
                 </p>
                 {txn.tags.length > 0 && (

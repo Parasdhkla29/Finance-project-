@@ -4,7 +4,7 @@ import { useAccountStore } from '../../store/useAccountStore';
 import { useTransactionStore } from '../../store/useTransactionStore';
 import { suggestCategory, ALL_CATEGORIES } from '../../core/categorizer';
 import { toMinor } from '../../core/types';
-import type { Transaction } from '../../core/types';
+import type { Transaction, PaymentTiming } from '../../core/types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -14,6 +14,8 @@ interface FormData {
   type: 'income' | 'expense' | 'transfer';
   amount: string;
   date: string;
+  expectedDate: string;
+  paymentTiming: PaymentTiming;
   category: string;
   merchant: string;
   notes: string;
@@ -42,9 +44,18 @@ const PAYMENT_OPTIONS = [
   { value: 'other', label: 'Other' },
 ];
 
+// Tomorrow's date as ISO string for the min attribute on future date picker
+function tomorrow(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
 export default function TransactionForm({ initial, onDone }: TransactionFormProps) {
   const { accounts } = useAccountStore();
   const { add, update } = useTransactionStore();
+
+  const isFutureInitial = initial?.paymentTiming === 'future';
 
   const {
     register,
@@ -56,7 +67,9 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
     defaultValues: {
       type: initial?.type ?? 'expense',
       amount: initial ? String(initial.amountMinorUnits / 100) : '',
-      date: initial?.date ?? new Date().toISOString().split('T')[0],
+      date: (!isFutureInitial ? initial?.date : undefined) ?? new Date().toISOString().split('T')[0],
+      expectedDate: isFutureInitial ? initial?.date : tomorrow(),
+      paymentTiming: initial?.paymentTiming ?? 'instant',
       category: initial?.category ?? '',
       merchant: initial?.merchant ?? '',
       notes: initial?.notes ?? '',
@@ -66,7 +79,10 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
     },
   });
 
+  const type = watch('type');
+  const paymentTiming = watch('paymentTiming');
   const merchant = watch('merchant');
+  const isFuture = type === 'income' && paymentTiming === 'future';
 
   // Auto-suggest category when merchant changes
   useEffect(() => {
@@ -75,7 +91,16 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
     if (suggestion) setValue('category', suggestion.category);
   }, [merchant, setValue, initial]);
 
+  // Reset timing to 'instant' when switching away from income
+  useEffect(() => {
+    if (type !== 'income') {
+      setValue('paymentTiming', 'instant');
+    }
+  }, [type, setValue]);
+
   async function onSubmit(data: FormData) {
+    const resolvedDate = isFuture ? data.expectedDate : data.date;
+
     const payload = {
       accountId: data.accountId,
       type: data.type as Transaction['type'],
@@ -84,8 +109,9 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
       category: data.category || 'Uncategorized',
       merchant: data.merchant || undefined,
       notes: data.notes || undefined,
-      date: data.date,
+      date: resolvedDate,
       paymentMethod: (data.paymentMethod as Transaction['paymentMethod']) || undefined,
+      paymentTiming: data.type === 'income' ? data.paymentTiming : undefined,
       tags: data.tags
         .split(',')
         .map((t) => t.trim())
@@ -111,7 +137,7 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {/* Type + Account — top row so you pick what and where immediately */}
+      {/* Type + Account */}
       <div className={activeAccounts.length > 1 ? 'grid grid-cols-2 gap-3' : ''}>
         <Select
           label="Type"
@@ -119,17 +145,15 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
           {...register('type', { required: true })}
         />
         {activeAccounts.length > 1 && (
-          <div>
-            <Select
-              label="Account"
-              options={accountOptions}
-              {...register('accountId')}
-            />
-          </div>
+          <Select
+            label="Account"
+            options={accountOptions}
+            {...register('accountId')}
+          />
         )}
       </div>
 
-      {/* Single account — still show it for clarity, full width */}
+      {/* Single account chip */}
       {activeAccounts.length === 1 && (
         <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60 border border-slate-700/60 rounded-xl">
           <span
@@ -143,6 +167,75 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
         </div>
       )}
 
+      {/* ── Payment timing (income only) ── */}
+      {type === 'income' && (
+        <div>
+          <p className="text-sm font-medium text-slate-300 mb-2">When will you receive it?</p>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Instant */}
+            <button
+              type="button"
+              onClick={() => setValue('paymentTiming', 'instant')}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                paymentTiming === 'instant'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                  : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+              }`}
+              aria-pressed={paymentTiming === 'instant'}
+            >
+              <span className={`text-base leading-none ${paymentTiming === 'instant' ? 'text-emerald-400' : 'text-slate-500'}`}>
+                ✓
+              </span>
+              <div>
+                <p className="text-xs font-semibold leading-none">Instant</p>
+                <p className="text-[10px] mt-0.5 opacity-70">Received today</p>
+              </div>
+            </button>
+
+            {/* Future payment */}
+            <button
+              type="button"
+              onClick={() => setValue('paymentTiming', 'future')}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                paymentTiming === 'future'
+                  ? 'bg-sky-500/10 border-sky-500/40 text-sky-300'
+                  : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+              }`}
+              aria-pressed={paymentTiming === 'future'}
+            >
+              <span className={`text-base leading-none ${paymentTiming === 'future' ? 'text-sky-400' : 'text-slate-500'}`}>
+                ⏳
+              </span>
+              <div>
+                <p className="text-xs font-semibold leading-none">Future payment</p>
+                <p className="text-[10px] mt-0.5 opacity-70">Expected later</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Expected date — only shown when future is selected */}
+          {isFuture && (
+            <div className="mt-3 p-3 bg-sky-500/6 border border-sky-500/20 rounded-xl">
+              <Input
+                label="Expected date"
+                type="date"
+                min={tomorrow()}
+                required
+                error={errors.expectedDate?.message}
+                {...register('expectedDate', {
+                  required: 'Expected date is required',
+                  validate: (v) => v >= tomorrow() || 'Must be a future date',
+                })}
+              />
+              <p className="text-[11px] text-sky-400/70 mt-1.5">
+                This income will appear as "Scheduled" until the expected date.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Amount + Date row */}
       <div className="grid grid-cols-2 gap-3">
         <Input
           label="Amount"
@@ -157,13 +250,20 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
             min: { value: 0.01, message: 'Must be > 0' },
           })}
         />
-        <Input
-          label="Date"
-          type="date"
-          required
-          error={errors.date?.message}
-          {...register('date', { required: 'Date is required' })}
-        />
+        {/* Hide date when future is selected (expectedDate used instead) */}
+        {!isFuture && (
+          <Input
+            label="Date"
+            type="date"
+            required
+            error={errors.date?.message}
+            {...register('date', { required: 'Date is required' })}
+          />
+        )}
+        {isFuture && (
+          /* spacer so amount doesn't stretch full width awkwardly */
+          <div />
+        )}
       </div>
 
       <Input
@@ -198,7 +298,7 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
 
       <div className="flex gap-2 pt-2">
         <Button type="submit" loading={isSubmitting} className="flex-1">
-          {initial ? 'Update' : 'Add Transaction'}
+          {initial ? 'Update' : isFuture ? 'Schedule Income' : 'Add Transaction'}
         </Button>
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancel

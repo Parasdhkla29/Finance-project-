@@ -24,6 +24,7 @@ export interface Account extends BaseEntity {
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
 export type PaymentMethod = 'card' | 'cash' | 'bank_transfer' | 'direct_debit' | 'other';
+export type PaymentTiming = 'instant' | 'future';
 
 export interface Transaction extends BaseEntity {
   accountId: string;
@@ -34,8 +35,9 @@ export interface Transaction extends BaseEntity {
   subcategory?: string;
   merchant?: string;
   notes?: string;
-  date: string; // ISO 8601
+  date: string; // ISO 8601 — for future payments this is the expected receipt date
   paymentMethod?: PaymentMethod;
+  paymentTiming?: PaymentTiming; // 'instant' (default) | 'future' (scheduled income)
   tags: string[];
   isRecurring: boolean;
   recurringId?: string;
