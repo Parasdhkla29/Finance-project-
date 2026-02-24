@@ -118,6 +118,39 @@ export interface FinancialGoal extends BaseEntity {
   isAchieved: boolean;
 }
 
+// ── Credit Card ────────────────────────────────────────────────────────────
+
+export type CreditCardNetwork = 'visa' | 'mastercard' | 'amex' | 'other';
+export type CreditCardStatus = 'active' | 'overdue' | 'closed';
+
+export interface CreditCardTransaction extends BaseEntity {
+  merchant: string;
+  category: string;
+  icon?: string;
+  amountMinorUnits: number;
+  currency: Currency;
+  date: string;
+  notes?: string;
+}
+
+export interface CreditCard extends BaseEntity {
+  name: string;
+  last4: string;
+  expiry: string;
+  network: CreditCardNetwork;
+  limitMinorUnits: number;
+  balanceMinorUnits: number;
+  minPaymentMinorUnits: number;
+  dueDate: string;
+  apr: number;
+  cashbackMinorUnits: number;
+  status: CreditCardStatus;
+  color: string;
+  currency: Currency;
+  notes?: string;
+  transactions: CreditCardTransaction[];
+}
+
 // ── Recurring Rule ─────────────────────────────────────────────────────────
 
 export type RecurringFrequency =

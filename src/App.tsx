@@ -4,6 +4,7 @@ import AppShell from './components/layout/AppShell';
 import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import LoansPage from './pages/LoansPage';
+import CreditCardsPage from './pages/CreditCardsPage';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import InsightsPage from './pages/InsightsPage';
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/loans" element={<LoansPage />} />
+          <Route path="/credit-cards" element={<CreditCardsPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/insights" element={<InsightsPage />} />

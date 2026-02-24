@@ -7,6 +7,7 @@ import type {
   Budget,
   FinancialGoal,
   RecurringRule,
+  CreditCard,
 } from './types';
 
 export class PrivyLedgerDB extends Dexie {
@@ -17,6 +18,7 @@ export class PrivyLedgerDB extends Dexie {
   budgets!: Table<Budget>;
   goals!: Table<FinancialGoal>;
   recurringRules!: Table<RecurringRule>;
+  creditCards!: Table<CreditCard>;
 
   constructor() {
     super('PrivyLedgerDB');
@@ -35,6 +37,24 @@ export class PrivyLedgerDB extends Dexie {
         'id, category, isAchieved, deletedAt',
       recurringRules:
         'id, isActive, deletedAt',
+    });
+    this.version(2).stores({
+      accounts:
+        'id, type, isArchived, deletedAt',
+      transactions:
+        'id, accountId, type, category, date, isRecurring, recurringId, deletedAt',
+      loans:
+        'id, direction, status, dueDate, counterparty, deletedAt',
+      subscriptions:
+        'id, isActive, nextBillingDate, category, deletedAt',
+      budgets:
+        'id, category, isActive, deletedAt',
+      goals:
+        'id, category, isAchieved, deletedAt',
+      recurringRules:
+        'id, isActive, deletedAt',
+      creditCards:
+        'id, status, dueDate, network, deletedAt',
     });
   }
 }
