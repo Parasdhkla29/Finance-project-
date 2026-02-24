@@ -97,6 +97,7 @@ function KpiCard({
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { accounts, load: loadAccounts } = useAccountStore();
   const { transactions, load: loadTransactions } = useTransactionStore();
   const { subscriptions, load: loadSubscriptions } = useSubscriptionStore();
@@ -268,34 +269,6 @@ export default function DashboardPage() {
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-6xl mx-auto">
 
-      {/* ── Zone A: Health banner ── */}
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${
-        healthColor === 'emerald'
-          ? 'bg-emerald-500/8 border-emerald-500/20'
-          : healthColor === 'amber'
-          ? 'bg-amber-500/8 border-amber-500/20'
-          : 'bg-red-500/8 border-red-500/20'
-      }`}>
-        <div className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
-          healthColor === 'emerald' ? 'bg-emerald-400' : healthColor === 'amber' ? 'bg-amber-400' : 'bg-red-400'
-        }`} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-200">{format(now, 'MMMM yyyy')}</p>
-          <p className={`text-xs mt-0.5 ${
-            healthColor === 'emerald' ? 'text-emerald-400' : healthColor === 'amber' ? 'text-amber-400' : 'text-red-400'
-          }`}>{healthMsg}</p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-xs font-medium text-slate-400">Day {dayOfMonth}/{daysInMonth}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <div className="w-16 h-1 bg-slate-700 rounded-full overflow-hidden">
-              <div className="h-full bg-slate-500 rounded-full" style={{ width: `${monthPct}%` }} />
-            </div>
-            <span className="text-[10px] text-slate-600">{monthPct}%</span>
-          </div>
-        </div>
-      </div>
-
       {/* Finance guidance tips */}
       {financeGuidance.length > 0 && (
         <div className="space-y-1.5">
@@ -308,8 +281,36 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Zone B: Hero + KPIs ── */}
+      {/* ── Zone B: Hero + KPIs (with month header integrated) ── */}
       <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-4">
+
+        {/* ── Month / health header integrated into card ── */}
+        <div className={`flex items-center gap-3 px-3 py-2.5 -mx-1 rounded-xl border ${
+          healthColor === 'emerald'
+            ? 'bg-emerald-500/8 border-emerald-500/20'
+            : healthColor === 'amber'
+            ? 'bg-amber-500/8 border-amber-500/20'
+            : 'bg-red-500/8 border-red-500/20'
+        }`}>
+          <div className={`w-2 h-2 rounded-full shrink-0 animate-pulse ${
+            healthColor === 'emerald' ? 'bg-emerald-400' : healthColor === 'amber' ? 'bg-amber-400' : 'bg-red-400'
+          }`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-200">{format(now, 'MMMM yyyy')}</p>
+            <p className={`text-xs mt-0.5 ${
+              healthColor === 'emerald' ? 'text-emerald-400' : healthColor === 'amber' ? 'text-amber-400' : 'text-red-400'
+            }`}>{healthMsg}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-xs font-medium text-slate-400">Day {dayOfMonth}/{daysInMonth}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <div className="w-16 h-1 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-slate-500 rounded-full" style={{ width: `${monthPct}%` }} />
+              </div>
+              <span className="text-[10px] text-slate-600">{monthPct}%</span>
+            </div>
+          </div>
+        </div>
 
         {/* ── Header row: label + currency quick-toggle ── */}
         <div className="flex items-center justify-between">
@@ -421,7 +422,7 @@ export default function DashboardPage() {
       {/* ── Quick-stats row: Monthly Subs + You Owe ── */}
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => { window.location.href = '/subscriptions'; }}
+          onClick={() => navigate('/subscriptions')}
           className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           aria-label="View subscriptions"
         >
@@ -433,7 +434,7 @@ export default function DashboardPage() {
         </button>
 
         <button
-          onClick={() => { window.location.href = '/loans'; }}
+          onClick={() => navigate('/loans')}
           className="text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           aria-label="View loans you owe"
         >
@@ -446,6 +447,15 @@ export default function DashboardPage() {
           </p>
         </button>
       </div>
+
+      {/* ── Upcoming bills (above chart) ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upcoming bills</CardTitle>
+          <Link to="/subscriptions" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">Manage</Link>
+        </CardHeader>
+        <UpcomingBills />
+      </Card>
 
       {/* ── Zone C: Income vs Expenses chart (full-width, prominent) ── */}
       <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4">
@@ -460,31 +470,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Zone D: Secondary charts row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Spending donut */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Spending by category</CardTitle>
-            <span className="text-xs text-slate-500">This month</span>
-          </CardHeader>
-          <CategoryDonut />
-        </Card>
-
-        {/* Upcoming bills */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming bills</CardTitle>
-            <Link to="/subscriptions" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">Manage</Link>
-          </CardHeader>
-          <UpcomingBills />
-        </Card>
-      </div>
+      {/* ── Zone D: Spending by category ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Spending by category</CardTitle>
+          <span className="text-xs text-slate-500">This month</span>
+        </CardHeader>
+        <CategoryDonut />
+      </Card>
 
       {/* ── Zone E: Goals summary ── */}
       {activeGoals.length > 0 && (
         <button
-          onClick={() => { window.location.href = '/goals'; }}
+          onClick={() => navigate('/goals')}
           className="w-full text-left bg-slate-800/60 hover:bg-slate-700/50 border border-slate-700/60 rounded-2xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           aria-label="View financial goals"
         >
