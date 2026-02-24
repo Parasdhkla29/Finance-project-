@@ -122,6 +122,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const now = new Date();
+    // "Today" as an ISO date string for comparing transaction dates
+    const todayStr = now.toISOString().split('T')[0];
 
     // This month
     const start = startOfMonth(now);
@@ -129,7 +131,12 @@ export default function DashboardPage() {
     const monthTxns = transactions.filter(
       (t) => !t.deletedAt && isWithinInterval(new Date(t.date), { start, end }),
     );
-    const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0);
+
+    // Only count income that has actually arrived (date ≤ today).
+    // Future-scheduled income is logged but excluded until its date comes.
+    const income = monthTxns
+      .filter((t) => t.type === 'income' && t.date <= todayStr)
+      .reduce((s, t) => s + t.amountMinorUnits, 0);
     const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0);
     setStats({
       income,
@@ -138,12 +145,12 @@ export default function DashboardPage() {
       savingsRate: income > 0 ? ((income - expenses) / income) * 100 : 0,
     });
 
-    // Per-account net for this month
+    // Per-account net for this month (same future-income exclusion)
     const activeAccs = accounts.filter((a) => !a.isArchived && !a.deletedAt);
     setAccountStats(
       activeAccs.map((acc) => {
         const accTxns = monthTxns.filter((t) => t.accountId === acc.id);
-        const accIncome = accTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0);
+        const accIncome = accTxns.filter((t) => t.type === 'income' && t.date <= todayStr).reduce((s, t) => s + t.amountMinorUnits, 0);
         const accExpenses = accTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0);
         return {
           id: acc.id,
@@ -530,24 +537,41 @@ export default function DashboardPage() {
           </div>
         ) : (
           <ul className="divide-y divide-slate-700/40" role="list">
-            {transactions.slice(0, 5).map((txn) => (
-              <li key={txn.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm ${
-                    txn.type === 'income' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+            {transactions.slice(0, 5).map((txn) => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const isScheduled = txn.type === 'income' && txn.date > todayStr;
+              return (
+                <li key={txn.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm ${
+                      isScheduled
+                        ? 'bg-sky-500/15 text-sky-400'
+                        : txn.type === 'income'
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-red-500/15 text-red-400'
+                    }`}>
+                      {isScheduled ? '⏳' : txn.type === 'income' ? '↓' : '↑'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium text-slate-200 truncate">{txn.merchant ?? txn.category}</p>
+                        {isScheduled && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wide bg-sky-900/50 text-sky-400 ring-1 ring-sky-700 uppercase shrink-0">
+                            Scheduled
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500">{txn.category} · {txn.date}</p>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-semibold ml-3 shrink-0 ${
+                    isScheduled ? 'text-sky-400' : txn.type === 'income' ? 'text-emerald-400' : 'text-red-400'
                   }`}>
-                    {txn.type === 'income' ? '↓' : '↑'}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-200 truncate">{txn.merchant ?? txn.category}</p>
-                    <p className="text-[11px] text-slate-500">{txn.category} · {txn.date}</p>
-                  </div>
-                </div>
-                <span className={`text-sm font-semibold ml-3 shrink-0 ${txn.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amountMinorUnits, txn.currency)}
-                </span>
-              </li>
-            ))}
+                    {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amountMinorUnits, txn.currency)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

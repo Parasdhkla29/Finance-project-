@@ -11,6 +11,7 @@ interface LoanState {
   update: (id: string, data: Partial<Loan>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   addPayment: (loanId: string, payment: Omit<LoanPayment, 'id'>) => Promise<void>;
+  updatePayment: (loanId: string, paymentId: string, data: Omit<LoanPayment, 'id'>) => Promise<void>;
   removePayment: (loanId: string, paymentId: string) => Promise<void>;
 }
 
@@ -67,6 +68,43 @@ export const useLoanStore = create<LoanState>((set, get) => ({
 
     const updatedLoan: Partial<Loan> = {
       payments: [...loan.payments, payment],
+      remainingMinorUnits: newRemaining,
+      status: newStatus,
+      updatedAt: now(),
+    };
+
+    await db.loans.update(loanId, updatedLoan);
+    set((s) => ({
+      loans: s.loans.map((l) =>
+        l.id === loanId ? { ...l, ...updatedLoan } : l,
+      ),
+    }));
+  },
+
+  updatePayment: async (loanId, paymentId, data) => {
+    const { loans } = get();
+    const loan = loans.find((l) => l.id === loanId);
+    if (!loan) return;
+
+    const oldPayment = loan.payments.find((p) => p.id === paymentId);
+    if (!oldPayment) return;
+
+    // Adjust remaining: reverse old amount, apply new amount
+    const delta = data.amount - oldPayment.amount;
+    const newRemaining = Math.max(0, Math.min(loan.principalMinorUnits, loan.remainingMinorUnits - delta));
+    const newStatus: Loan['status'] =
+      newRemaining === 0
+        ? 'settled'
+        : newRemaining < loan.principalMinorUnits
+          ? 'partially_paid'
+          : 'active';
+
+    const updatedPayments = loan.payments.map((p) =>
+      p.id === paymentId ? { ...p, ...data } : p,
+    );
+
+    const updatedLoan: Partial<Loan> = {
+      payments: updatedPayments,
       remainingMinorUnits: newRemaining,
       status: newStatus,
       updatedAt: now(),

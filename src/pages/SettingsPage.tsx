@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useUIStore } from '../store/useUIStore';
 import { useAccountStore } from '../store/useAccountStore';
@@ -45,7 +45,7 @@ interface AccountFormData {
 }
 
 export default function SettingsPage() {
-  const { theme, currency, setTheme, setCurrency } = useUIStore();
+  const { theme, currency, defaultAccountId, setTheme, setCurrency, setDefaultAccountId } = useUIStore();
   const { accounts, load: loadAccounts, add: addAccount, remove: removeAccount } = useAccountStore();
 
   const [exportLoading, setExportLoading] = useState(false);
@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const [decryptResult, setDecryptResult] = useState<string | null>(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const { register: regAccount, handleSubmit: handleAccountSubmit, formState: { isSubmitting: isAddingAccount }, reset: resetAccount } = useForm<AccountFormData>({
     defaultValues: { name: '', type: 'checking', currency: 'GBP', color: '#0ea5e9' },
@@ -216,20 +217,61 @@ export default function SettingsPage() {
         ) : (
           <ul className="divide-y divide-slate-700/50">
             {accounts.filter((a) => !a.isArchived && !a.deletedAt).map((a) => (
-              <li key={a.id} className="flex items-center gap-3 py-2.5">
+              <li key={a.id} className="flex items-center gap-3 py-2.5 relative">
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} aria-hidden="true" />
                 <span className="text-sm text-slate-200 flex-1 truncate">{a.name}</span>
+                {defaultAccountId === a.id && (
+                  <Badge variant="success">Default</Badge>
+                )}
                 <Badge variant="info">{a.type}</Badge>
                 <Badge>{a.currency}</Badge>
-                <button
-                  onClick={() => setDeleteAccountId(a.id)}
-                  className="ml-1 p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
-                  aria-label={`Delete account ${a.name}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                    <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
-                  </svg>
-                </button>
+
+                {/* ── Three-dot menu ── */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}
+                    className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700 rounded-lg transition-colors"
+                    aria-label={`Options for ${a.name}`}
+                    aria-expanded={openMenuId === a.id}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+                    </svg>
+                  </button>
+
+                  {openMenuId === a.id && (
+                    <>
+                      {/* Backdrop to close */}
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setOpenMenuId(null)}
+                        aria-hidden="true"
+                      />
+                      <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setDefaultAccountId(defaultAccountId === a.id ? null : a.id);
+                            setOpenMenuId(null);
+                          }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors text-left"
+                        >
+                          <span className="text-base">{defaultAccountId === a.id ? '☆' : '★'}</span>
+                          <span>{defaultAccountId === a.id ? 'Remove default' : 'Set as default'}</span>
+                        </button>
+                        <div className="h-px bg-slate-700" />
+                        <button
+                          onClick={() => { setDeleteAccountId(a.id); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                            <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
+                          </svg>
+                          <span>Delete account</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

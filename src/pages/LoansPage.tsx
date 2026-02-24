@@ -147,11 +147,76 @@ function PaymentForm({ loan, onDone }: { loan: Loan; onDone: () => void }) {
   );
 }
 
+// ── Inline edit form for a single payment ─────────────────────────────────────
+
+interface EditPaymentFormData {
+  amount: string;
+  date: string;
+  notes: string;
+}
+
+function EditPaymentRow({
+  loan,
+  paymentId,
+  onDone,
+}: {
+  loan: Loan;
+  paymentId: string;
+  onDone: () => void;
+}) {
+  const { updatePayment } = useLoanStore();
+  const payment = loan.payments.find((p) => p.id === paymentId);
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<EditPaymentFormData>({
+    defaultValues: {
+      amount: payment ? String(payment.amount / 100) : '',
+      date: payment?.date ?? new Date().toISOString().split('T')[0],
+      notes: payment?.notes ?? '',
+    },
+  });
+
+  async function onSubmit(data: EditPaymentFormData) {
+    await updatePayment(loan.id, paymentId, {
+      amount: toMinor(parseFloat(data.amount)),
+      date: data.date,
+      notes: data.notes || undefined,
+    });
+    onDone();
+  }
+
+  return (
+    <li className="px-2 py-2 rounded-lg bg-slate-700/30 border border-slate-600/40">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            label="Amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            required
+            {...register('amount', { required: true })}
+          />
+          <Input label="Date" type="date" required {...register('date', { required: true })} />
+        </div>
+        <Input label="Notes" placeholder="Optional note" {...register('notes')} />
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" variant="success" loading={isSubmitting} className="flex-1">
+            Save
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </li>
+  );
+}
+
 // ── Animated payment history dropdown ─────────────────────────────────────────
 
 function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
   const { removePayment } = useLoanStore();
   const [open, setOpen] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
   return (
     <div className="mt-3 border-t border-slate-700/50 pt-3">
@@ -180,11 +245,19 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
 
       {/* Payment rows (animated) */}
       {open && (
-        <ul className="mt-2 space-y-0.5 animate-slideDown">
+        <ul className="mt-2 space-y-1 animate-slideDown">
           {loan.payments.length === 0 ? (
             <li className="text-xs text-slate-600 italic px-2 py-1">No payments yet.</li>
           ) : (
-            loan.payments.map((p) => (
+            loan.payments.map((p) =>
+              editingPaymentId === p.id ? (
+                <EditPaymentRow
+                  key={p.id}
+                  loan={loan}
+                  paymentId={p.id}
+                  onDone={() => setEditingPaymentId(null)}
+                />
+              ) : (
               <li
                 key={p.id}
                 className="group flex items-center justify-between px-2 py-2 rounded-lg hover:bg-slate-700/40 transition-colors"
@@ -208,6 +281,16 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
                 {/* Right: edit/delete icons (visible on hover) */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
+                    title="Edit payment"
+                    onClick={() => setEditingPaymentId(p.id)}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-sky-400 hover:bg-sky-900/20 transition-colors"
+                    aria-label="Edit payment"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                  <button
                     title="Delete payment"
                     onClick={() => removePayment(loan.id, p.id)}
                     className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
@@ -219,7 +302,8 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
                   </button>
                 </div>
               </li>
-            ))
+              )
+            )
           )}
         </ul>
       )}

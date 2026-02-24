@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAccountStore } from '../../store/useAccountStore';
 import { useTransactionStore } from '../../store/useTransactionStore';
+import { useUIStore } from '../../store/useUIStore';
 import { suggestCategory, ALL_CATEGORIES } from '../../core/categorizer';
 import { toMinor } from '../../core/types';
 import type { Transaction, PaymentTiming } from '../../core/types';
@@ -54,6 +55,7 @@ function tomorrow(): string {
 export default function TransactionForm({ initial, onDone }: TransactionFormProps) {
   const { accounts } = useAccountStore();
   const { add, update } = useTransactionStore();
+  const { defaultAccountId } = useUIStore();
 
   const isFutureInitial = initial?.paymentTiming === 'future';
 
@@ -73,7 +75,7 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
       category: initial?.category ?? '',
       merchant: initial?.merchant ?? '',
       notes: initial?.notes ?? '',
-      accountId: initial?.accountId ?? accounts[0]?.id ?? '',
+      accountId: initial?.accountId ?? defaultAccountId ?? accounts[0]?.id ?? '',
       paymentMethod: initial?.paymentMethod ?? '',
       tags: initial?.tags.join(', ') ?? '',
     },
