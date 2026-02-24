@@ -1,0 +1,65 @@
+name: Auto-merge claude/* to main then deploy
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  merge-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge current branch into main
+        run: |
+          CURRENT_BRANCH="${GITHUB_REF_NAME}"
+          git checkout main
+          git merge --ff-only "origin/${CURRENT_BRANCH}" || git merge -m "chore: merge ${CURRENT_BRANCH} into main" "origin/${CURRENT_BRANCH}"
+          git push origin main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          GITHUB_PAGES: 'true'
+
+      - name: Copy index.html to 404.html for SPA routing
+        run: cp dist/index.html dist/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: merge-and-deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
