@@ -82,7 +82,7 @@ function CustomTooltip({ active, payload, label }: {
 // ── main component ────────────────────────────────────────────────────────────
 
 export default function NetBalanceChart() {
-  const [period, setPeriod] = useState<Period>('monthly');
+  const [period, setPeriod] = useState<Period>('weekly');
   const [showComparison, setShowComparison] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [data, setData] = useState<ChartPoint[]>([]);
