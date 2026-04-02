@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAccountStore } from '../../store/useAccountStore';
 import { useTransactionStore } from '../../store/useTransactionStore';
@@ -52,9 +52,101 @@ function tomorrow(): string {
   return d.toISOString().split('T')[0];
 }
 
+// ── Merchant combobox with frequent-merchant suggestions ─────────────────────
+
+function MerchantCombobox({
+  value,
+  onChange,
+  allTransactions,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  allTransactions: Transaction[];
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Merchants used 2+ times, sorted by frequency
+  const suggestions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of allTransactions) {
+      if (t.merchant && !t.deletedAt) {
+        counts[t.merchant] = (counts[t.merchant] ?? 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .filter(([, n]) => n >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .map(([m]) => m);
+  }, [allTransactions]);
+
+  const filtered = value
+    ? suggestions.filter((m) => m.toLowerCase().includes(value.toLowerCase()))
+    : suggestions;
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative flex flex-col gap-1">
+      <label className="text-sm font-medium text-slate-300">Merchant / Source</label>
+      <div className="relative">
+        <input
+          type="text"
+          value={value}
+          autoComplete="off"
+          placeholder="e.g. Tesco, Salary"
+          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          className="w-full rounded-lg px-3 py-2 pr-8 text-sm bg-slate-800 border border-slate-600 hover:border-slate-500 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-150"
+        />
+        {suggestions.length > 0 && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setOpen((v) => !v)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-0.5"
+            aria-label="Show merchant suggestions"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+              <path d={open ? 'M8 5.06l5.47 5.47-.94.94L8 6.94 3.47 11.47l-.94-.94z' : 'M8 10.94L2.53 5.47l.94-.94L8 9.06l4.53-4.53.94.94z'} />
+            </svg>
+          </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+          {filtered.slice(0, 8).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onChange(m); setOpen(false); }}
+              className="w-full text-left px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-700/80 active:bg-slate-700 transition-colors flex items-center gap-2.5"
+            >
+              <span className="text-slate-600 text-xs shrink-0">↵</span>
+              <span className="truncate">{m}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── main form ────────────────────────────────────────────────────────────────
+
 export default function TransactionForm({ initial, onDone }: TransactionFormProps) {
   const { accounts } = useAccountStore();
-  const { add, update } = useTransactionStore();
+  const { add, update, transactions } = useTransactionStore();
   const { defaultAccountId } = useUIStore();
 
   const isFutureInitial = initial?.paymentTiming === 'future';
@@ -268,10 +360,10 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
         )}
       </div>
 
-      <Input
-        label="Merchant / Source"
-        placeholder="e.g. Tesco, Salary"
-        {...register('merchant')}
+      <MerchantCombobox
+        value={merchant}
+        onChange={(v) => setValue('merchant', v, { shouldDirty: true })}
+        allTransactions={transactions}
       />
 
       <Select

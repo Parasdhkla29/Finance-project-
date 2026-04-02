@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -9,9 +9,12 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import {
+  subDays,
   subMonths,
   subWeeks,
   subYears,
+  startOfDay,
+  endOfDay,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -27,7 +30,7 @@ import {
 import { db } from '../../core/db';
 import { toMajor } from '../../core/types';
 
-type Period = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 interface ChartPoint {
   label: string;
@@ -104,7 +107,32 @@ export default function NetBalanceChart() {
       const now = new Date();
       const points: ChartPoint[] = [];
 
-      if (period === 'weekly') {
+      if (period === 'daily') {
+        // Last 14 days
+        for (let i = 13; i >= 0; i--) {
+          const day = subDays(now, i);
+          const start = startOfDay(day);
+          const end = endOfDay(day);
+          const txns = await fetchRange(start, end);
+
+          let pastIncome: number | undefined;
+          let pastExpenses: number | undefined;
+          if (showComparison) {
+            const pDay = subDays(day, 14);
+            const past = await fetchRange(startOfDay(pDay), endOfDay(pDay));
+            pastIncome = sumBy(past, 'income');
+            pastExpenses = sumBy(past, 'expense');
+          }
+
+          points.push({
+            label: format(day, 'MMM d'),
+            income: sumBy(txns, 'income'),
+            expenses: sumBy(txns, 'expense'),
+            pastIncome,
+            pastExpenses,
+          });
+        }
+      } else if (period === 'weekly') {
         // 8 weeks ending this week
         for (let i = 7; i >= 0; i--) {
           const wDate = subWeeks(now, i);
@@ -216,11 +244,17 @@ export default function NetBalanceChart() {
   }, [period, showComparison]);
 
   const periods: { key: Period; label: string }[] = [
+    { key: 'daily', label: 'D' },
     { key: 'weekly', label: 'W' },
     { key: 'monthly', label: 'M' },
     { key: 'quarterly', label: 'Q' },
     { key: 'yearly', label: 'Y' },
   ];
+
+  const totalIncome = data.reduce((s, d) => s + d.income, 0);
+  const totalExpenses = data.reduce((s, d) => s + d.expenses, 0);
+
+  const maxBarSize = period === 'daily' ? 12 : period === 'weekly' ? 20 : 28;
 
   return (
     <div>
@@ -252,8 +286,8 @@ export default function NetBalanceChart() {
             <LegendDot color="#ef4444" label="Expenses" />
             {showComparison && (
               <>
-                <LegendDot color="#a78bfa" label="Past income" dashed />
-                <LegendDot color="#fb923c" label="Past expenses" dashed />
+                <LegendDot color="#a78bfa" label="Past income" />
+                <LegendDot color="#fb923c" label="Past expenses" />
               </>
             )}
           </div>
@@ -286,7 +320,6 @@ export default function NetBalanceChart() {
                     <p className="font-medium">Compare past period</p>
                     <p className="text-xs text-slate-500 mt-0.5">Show prev. equivalent range</p>
                   </div>
-                  {/* Toggle */}
                   <div
                     className={`relative ml-3 w-9 h-5 rounded-full transition-colors shrink-0 ${
                       showComparison ? 'bg-sky-500' : 'bg-slate-600'
@@ -301,7 +334,7 @@ export default function NetBalanceChart() {
                 </button>
                 <div className="border-t border-slate-700/60 mx-3 mb-1" />
                 <p className="px-3 pb-2.5 text-[10px] text-slate-600 leading-relaxed">
-                  Past data shown as faded dashed lines in violet & orange.
+                  Past data shown as faded bars in violet & orange.
                 </p>
               </div>
             )}
@@ -315,41 +348,23 @@ export default function NetBalanceChart() {
         <LegendDot color="#ef4444" label="Expenses" />
         {showComparison && (
           <>
-            <LegendDot color="#a78bfa" label="Past inc." dashed />
-            <LegendDot color="#fb923c" label="Past exp." dashed />
+            <LegendDot color="#a78bfa" label="Past inc." />
+            <LegendDot color="#fb923c" label="Past exp." />
           </>
         )}
       </div>
 
-      {/* Chart */}
+      {/* Bar Chart */}
       <div aria-label={`${period} income vs expenses chart`}>
         <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#10b981" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gExpenses" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gPastIncome" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.14} />
-                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gPastExpenses" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fb923c" stopOpacity={0.14} />
-                <stop offset="100%" stopColor="#fb923c" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-
+          <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%" barGap={2}>
             <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
             <XAxis
               dataKey="label"
               tick={{ fill: '#475569', fontSize: 10 }}
               axisLine={false}
               tickLine={false}
+              interval={period === 'daily' ? 1 : 0}
             />
             <YAxis
               tick={{ fill: '#475569', fontSize: 10 }}
@@ -358,61 +373,37 @@ export default function NetBalanceChart() {
               tickFormatter={(v) => `£${v}`}
               width={44}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', radius: 4 }} />
 
-            {/* Past period (rendered first — behind current) */}
+            {/* Past period bars (rendered first — behind current) */}
             {showComparison && (
               <>
-                <Area
-                  type="monotone"
-                  dataKey="pastIncome"
-                  stroke="#a78bfa"
-                  strokeWidth={1.5}
-                  strokeDasharray="5 3"
-                  fill="url(#gPastIncome)"
-                  strokeOpacity={0.7}
-                  dot={false}
-                  activeDot={{ r: 3, fill: '#a78bfa' }}
-                  name="pastIncome"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pastExpenses"
-                  stroke="#fb923c"
-                  strokeWidth={1.5}
-                  strokeDasharray="5 3"
-                  fill="url(#gPastExpenses)"
-                  strokeOpacity={0.7}
-                  dot={false}
-                  activeDot={{ r: 3, fill: '#fb923c' }}
-                  name="pastExpenses"
-                />
+                <Bar dataKey="pastIncome" fill="#a78bfa" fillOpacity={0.45} radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="pastIncome" />
+                <Bar dataKey="pastExpenses" fill="#fb923c" fillOpacity={0.45} radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="pastExpenses" />
               </>
             )}
 
-            {/* Current period */}
-            <Area
-              type="monotone"
-              dataKey="income"
-              stroke="#10b981"
-              strokeWidth={2}
-              fill="url(#gIncome)"
-              dot={false}
-              activeDot={{ r: 4, fill: '#10b981', stroke: '#0f172a', strokeWidth: 2 }}
-              name="income"
-            />
-            <Area
-              type="monotone"
-              dataKey="expenses"
-              stroke="#ef4444"
-              strokeWidth={2}
-              fill="url(#gExpenses)"
-              dot={false}
-              activeDot={{ r: 4, fill: '#ef4444', stroke: '#0f172a', strokeWidth: 2 }}
-              name="expenses"
-            />
-          </AreaChart>
+            {/* Current period bars */}
+            <Bar dataKey="income" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="income" />
+            <Bar dataKey="expenses" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="expenses" />
+          </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* ── Income / Expense totals below chart ── */}
+      <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-700/50">
+        <div>
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Income</p>
+          <p className="text-2xl font-bold text-emerald-400 tabular-nums mt-1">
+            £{totalIncome.toFixed(2)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Expenses</p>
+          <p className="text-2xl font-bold text-red-400 tabular-nums mt-1">
+            £{totalExpenses.toFixed(2)}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -420,16 +411,10 @@ export default function NetBalanceChart() {
 
 // ── small legend dot ──────────────────────────────────────────────────────────
 
-function LegendDot({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      {dashed ? (
-        <svg width="14" height="2" viewBox="0 0 14 2" aria-hidden="true">
-          <line x1="0" y1="1" x2="14" y2="1" stroke={color} strokeWidth="2" strokeDasharray="4 2" />
-        </svg>
-      ) : (
-        <span className="w-3 h-0.5 rounded" style={{ background: color }} />
-      )}
+      <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
       <span className="text-xs text-slate-500">{label}</span>
     </div>
   );
