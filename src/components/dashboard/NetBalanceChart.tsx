@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -9,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import {
+  addDays,
   subDays,
   subMonths,
   subWeeks,
@@ -26,6 +28,7 @@ import {
   subQuarters,
   format,
   isWithinInterval,
+  isFuture as isDateFuture,
 } from 'date-fns';
 import { db } from '../../core/db';
 import { toMajor } from '../../core/types';
@@ -34,13 +37,15 @@ type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 interface ChartPoint {
   label: string;
+  displayDate: string;
   income: number;
   expenses: number;
+  isFutureDay?: boolean;
   pastIncome?: number;
   pastExpenses?: number;
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 async function fetchRange(start: Date, end: Date) {
   return db.transactions
@@ -54,7 +59,7 @@ function sumBy(txns: Awaited<ReturnType<typeof fetchRange>>, type: 'income' | 'e
   );
 }
 
-// ── custom tooltip ────────────────────────────────────────────────────────────
+// ── custom tooltip ─────────────────────────────────────────────────────────────
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean;
@@ -63,10 +68,8 @@ function CustomTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   const map: Record<string, string> = {
-    income: 'Income',
-    expenses: 'Expenses',
-    pastIncome: 'Past income',
-    pastExpenses: 'Past expenses',
+    income: 'Income', expenses: 'Expenses',
+    pastIncome: 'Past income', pastExpenses: 'Past expenses',
   };
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 shadow-xl">
@@ -82,21 +85,23 @@ function CustomTooltip({ active, payload, label }: {
   );
 }
 
-// ── main component ────────────────────────────────────────────────────────────
+// ── main component ─────────────────────────────────────────────────────────────
 
 export default function NetBalanceChart() {
-  const [period, setPeriod] = useState<Period>('weekly');
+  const [period, setPeriod] = useState<Period>('daily');
   const [showComparison, setShowComparison] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [data, setData] = useState<ChartPoint[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // close menu on outside click
+  // Clear selection when period changes
+  useEffect(() => { setSelectedLabel(null); }, [period]);
+
+  // Close menu on outside click
   useEffect(() => {
     function onOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
     document.addEventListener('mousedown', onOutside);
     return () => document.removeEventListener('mousedown', onOutside);
@@ -108,32 +113,36 @@ export default function NetBalanceChart() {
       const points: ChartPoint[] = [];
 
       if (period === 'daily') {
-        // Last 14 days
-        for (let i = 13; i >= 0; i--) {
-          const day = subDays(now, i);
-          const start = startOfDay(day);
-          const end = endOfDay(day);
-          const txns = await fetchRange(start, end);
+        // Current calendar week Mon–Sun (7 bars)
+        // Future days show scheduled/planned income so the user can see what's coming
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        for (let i = 0; i < 7; i++) {
+          const day = addDays(weekStart, i);
+          const txns = await fetchRange(startOfDay(day), endOfDay(day));
+          const futureDay = isDateFuture(endOfDay(day));
 
           let pastIncome: number | undefined;
           let pastExpenses: number | undefined;
           if (showComparison) {
-            const pDay = subDays(day, 14);
-            const past = await fetchRange(startOfDay(pDay), endOfDay(pDay));
+            // Compare same weekday from last week
+            const sameLastWeek = subDays(day, 7);
+            const past = await fetchRange(startOfDay(sameLastWeek), endOfDay(sameLastWeek));
             pastIncome = sumBy(past, 'income');
             pastExpenses = sumBy(past, 'expense');
           }
 
           points.push({
-            label: format(day, 'MMM d'),
+            label: format(day, 'EEE'),          // "Mon", "Tue" …
+            displayDate: format(day, 'EEEE, MMM d'), // "Monday, Apr 7"
             income: sumBy(txns, 'income'),
             expenses: sumBy(txns, 'expense'),
+            isFutureDay: futureDay,
             pastIncome,
             pastExpenses,
           });
         }
       } else if (period === 'weekly') {
-        // 8 weeks ending this week
+        // Last 8 weeks
         for (let i = 7; i >= 0; i--) {
           const wDate = subWeeks(now, i);
           const start = startOfWeek(wDate, { weekStartsOn: 1 });
@@ -152,6 +161,7 @@ export default function NetBalanceChart() {
 
           points.push({
             label: format(start, 'MMM d'),
+            displayDate: `Week of ${format(start, 'MMM d')}`,
             income: sumBy(txns, 'income'),
             expenses: sumBy(txns, 'expense'),
             pastIncome,
@@ -159,12 +169,9 @@ export default function NetBalanceChart() {
           });
         }
       } else if (period === 'monthly') {
-        // 6 months ending this month
         for (let i = 5; i >= 0; i--) {
           const mDate = subMonths(now, i);
-          const start = startOfMonth(mDate);
-          const end = endOfMonth(mDate);
-          const txns = await fetchRange(start, end);
+          const txns = await fetchRange(startOfMonth(mDate), endOfMonth(mDate));
 
           let pastIncome: number | undefined;
           let pastExpenses: number | undefined;
@@ -177,6 +184,7 @@ export default function NetBalanceChart() {
 
           points.push({
             label: format(mDate, 'MMM'),
+            displayDate: format(mDate, 'MMMM yyyy'),
             income: sumBy(txns, 'income'),
             expenses: sumBy(txns, 'expense'),
             pastIncome,
@@ -184,15 +192,10 @@ export default function NetBalanceChart() {
           });
         }
       } else if (period === 'quarterly') {
-        // 6 quarters ending this quarter
         for (let i = 5; i >= 0; i--) {
           const qDate = subQuarters(now, i);
-          const start = startOfQuarter(qDate);
-          const end = endOfQuarter(qDate);
-          const txns = await fetchRange(start, end);
-
+          const txns = await fetchRange(startOfQuarter(qDate), endOfQuarter(qDate));
           const q = Math.floor(qDate.getMonth() / 3) + 1;
-          const yr = format(qDate, 'yy');
 
           let pastIncome: number | undefined;
           let pastExpenses: number | undefined;
@@ -204,7 +207,8 @@ export default function NetBalanceChart() {
           }
 
           points.push({
-            label: `Q${q} '${yr}`,
+            label: `Q${q} '${format(qDate, 'yy')}`,
+            displayDate: `Q${q} ${format(qDate, 'yyyy')}`,
             income: sumBy(txns, 'income'),
             expenses: sumBy(txns, 'expense'),
             pastIncome,
@@ -212,12 +216,9 @@ export default function NetBalanceChart() {
           });
         }
       } else {
-        // 4 years ending this year
         for (let i = 3; i >= 0; i--) {
           const yDate = subYears(now, i);
-          const start = startOfYear(yDate);
-          const end = endOfYear(yDate);
-          const txns = await fetchRange(start, end);
+          const txns = await fetchRange(startOfYear(yDate), endOfYear(yDate));
 
           let pastIncome: number | undefined;
           let pastExpenses: number | undefined;
@@ -230,6 +231,7 @@ export default function NetBalanceChart() {
 
           points.push({
             label: format(yDate, 'yyyy'),
+            displayDate: format(yDate, 'yyyy'),
             income: sumBy(txns, 'income'),
             expenses: sumBy(txns, 'expense'),
             pastIncome,
@@ -251,25 +253,49 @@ export default function NetBalanceChart() {
     { key: 'yearly', label: 'Y' },
   ];
 
-  const totalIncome = data.reduce((s, d) => s + d.income, 0);
-  const totalExpenses = data.reduce((s, d) => s + d.expenses, 0);
+  // Selected point data
+  const selectedPoint = data.find((d) => d.label === selectedLabel) ?? null;
+  const displayIncome = selectedPoint ? selectedPoint.income : data.reduce((s, d) => s + d.income, 0);
+  const displayExpenses = selectedPoint ? selectedPoint.expenses : data.reduce((s, d) => s + d.expenses, 0);
+  const periodTotalLabel: Record<Period, string> = {
+    daily: 'This week', weekly: '8-week total',
+    monthly: '6-month total', quarterly: '6-quarter total', yearly: '4-year total',
+  };
 
-  const maxBarSize = period === 'daily' ? 12 : period === 'weekly' ? 20 : 28;
+  const maxBarSize = period === 'daily' ? 32 : period === 'weekly' ? 20 : 28;
+
+  // Bar color logic: dim non-selected bars when something is selected;
+  // dim future-day bars slightly to signal they are pending/scheduled
+  function barFill(entry: ChartPoint, baseColor: string, brightColor: string) {
+    if (selectedLabel) {
+      return entry.label === selectedLabel ? brightColor : baseColor;
+    }
+    return baseColor;
+  }
+  function barOpacity(entry: ChartPoint) {
+    if (selectedLabel && entry.label !== selectedLabel) return 0.25;
+    if (entry.isFutureDay) return 0.45;
+    return 1;
+  }
+
+  // Handle bar click — toggle selection
+  function handleChartClick(chartData: { activeLabel?: string; activePayload?: Array<{ payload: ChartPoint }> }) {
+    const label = chartData?.activeLabel;
+    if (!label) return;
+    setSelectedLabel((prev) => (prev === label ? null : label));
+  }
 
   return (
     <div>
       {/* Controls row */}
       <div className="flex items-center justify-between mb-4">
-        {/* Period filter pills */}
         <div className="flex gap-1 bg-slate-900/60 rounded-lg p-1">
           {periods.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setPeriod(key)}
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                period === key
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-200'
+                period === key ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-200'
               }`}
               aria-pressed={period === key}
               aria-label={key}
@@ -279,7 +305,6 @@ export default function NetBalanceChart() {
           ))}
         </div>
 
-        {/* Legend + three-dot menu */}
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-3">
             <LegendDot color="#10b981" label="Income" />
@@ -320,16 +345,8 @@ export default function NetBalanceChart() {
                     <p className="font-medium">Compare past period</p>
                     <p className="text-xs text-slate-500 mt-0.5">Show prev. equivalent range</p>
                   </div>
-                  <div
-                    className={`relative ml-3 w-9 h-5 rounded-full transition-colors shrink-0 ${
-                      showComparison ? 'bg-sky-500' : 'bg-slate-600'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        showComparison ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
+                  <div className={`relative ml-3 w-9 h-5 rounded-full transition-colors shrink-0 ${showComparison ? 'bg-sky-500' : 'bg-slate-600'}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showComparison ? 'translate-x-4' : 'translate-x-0'}`} />
                   </div>
                 </button>
                 <div className="border-t border-slate-700/60 mx-3 mb-1" />
@@ -354,17 +371,23 @@ export default function NetBalanceChart() {
         )}
       </div>
 
-      {/* Bar Chart */}
-      <div aria-label={`${period} income vs expenses chart`}>
+      {/* Bar Chart — tap a bar to inspect that day/period */}
+      <div aria-label={`${period} income vs expenses chart`} style={{ cursor: 'pointer' }}>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="25%" barGap={2}>
+          <BarChart
+            data={data}
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+            barCategoryGap="25%"
+            barGap={2}
+            onClick={handleChartClick}
+          >
             <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
             <XAxis
               dataKey="label"
               tick={{ fill: '#475569', fontSize: 10 }}
               axisLine={false}
               tickLine={false}
-              interval={period === 'daily' ? 1 : 0}
+              interval={0}
             />
             <YAxis
               tick={{ fill: '#475569', fontSize: 10 }}
@@ -373,43 +396,95 @@ export default function NetBalanceChart() {
               tickFormatter={(v) => `£${v}`}
               width={44}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', radius: 4 }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b60', radius: 4 }} />
 
-            {/* Past period bars (rendered first — behind current) */}
+            {/* Past comparison bars */}
             {showComparison && (
               <>
-                <Bar dataKey="pastIncome" fill="#a78bfa" fillOpacity={0.45} radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="pastIncome" />
-                <Bar dataKey="pastExpenses" fill="#fb923c" fillOpacity={0.45} radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="pastExpenses" />
+                <Bar dataKey="pastIncome" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="pastIncome">
+                  {data.map((entry) => (
+                    <Cell key={`pi-${entry.label}`} fill="#a78bfa" fillOpacity={barOpacity(entry) * 0.45} />
+                  ))}
+                </Bar>
+                <Bar dataKey="pastExpenses" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="pastExpenses">
+                  {data.map((entry) => (
+                    <Cell key={`pe-${entry.label}`} fill="#fb923c" fillOpacity={barOpacity(entry) * 0.45} />
+                  ))}
+                </Bar>
               </>
             )}
 
-            {/* Current period bars */}
-            <Bar dataKey="income" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="income" />
-            <Bar dataKey="expenses" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="expenses" />
+            {/* Income bars */}
+            <Bar dataKey="income" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="income">
+              {data.map((entry) => (
+                <Cell
+                  key={`inc-${entry.label}`}
+                  fill={barFill(entry, '#10b981', '#34d399')}
+                  fillOpacity={barOpacity(entry)}
+                />
+              ))}
+            </Bar>
+
+            {/* Expense bars */}
+            <Bar dataKey="expenses" radius={[3, 3, 0, 0]} maxBarSize={maxBarSize} name="expenses">
+              {data.map((entry) => (
+                <Cell
+                  key={`exp-${entry.label}`}
+                  fill={barFill(entry, '#ef4444', '#f87171')}
+                  fillOpacity={barOpacity(entry)}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ── Income / Expense totals below chart ── */}
-      <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-700/50">
-        <div>
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Income</p>
-          <p className="text-2xl font-bold text-emerald-400 tabular-nums mt-1">
-            £{totalIncome.toFixed(2)}
+      {period === 'daily' && (
+        <p className="text-[10px] text-slate-600 mt-1 text-center">
+          Faded bars = future days · scheduled income shown
+        </p>
+      )}
+
+      {/* ── Summary below chart ── */}
+      <div className="mt-4 pt-4 border-t border-slate-700/50">
+        {/* Date / period label */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">
+            {selectedPoint ? selectedPoint.displayDate : periodTotalLabel[period]}
           </p>
+          {selectedLabel && (
+            <button
+              onClick={() => setSelectedLabel(null)}
+              className="text-[10px] text-sky-400 hover:text-sky-300 transition-colors"
+            >
+              Show total ×
+            </button>
+          )}
         </div>
-        <div>
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Expenses</p>
-          <p className="text-2xl font-bold text-red-400 tabular-nums mt-1">
-            £{totalExpenses.toFixed(2)}
-          </p>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Income</p>
+            <p className="text-2xl font-bold text-emerald-400 tabular-nums mt-1">
+              £{displayIncome.toFixed(2)}
+            </p>
+            {selectedPoint?.isFutureDay && (
+              <p className="text-[10px] text-sky-400 mt-0.5">Scheduled</p>
+            )}
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Expenses</p>
+            <p className="text-2xl font-bold text-red-400 tabular-nums mt-1">
+              £{displayExpenses.toFixed(2)}
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ── small legend dot ──────────────────────────────────────────────────────────
+// ── small legend dot ───────────────────────────────────────────────────────────
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
