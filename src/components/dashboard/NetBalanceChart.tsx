@@ -352,7 +352,8 @@ export default function NetBalanceChart() {
     return 1;
   }
 
-  function handleChartClick(chartData: { activeLabel?: string }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function handleChartClick(chartData: any) {
     const label = chartData?.activeLabel;
     if (!label) return;
     setSelectedLabel((prev) => (prev === label ? null : label));
