@@ -66,22 +66,40 @@ function MerchantCombobox({
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Merchants used 2+ times, sorted by frequency
+  // Merchants used 2+ times, grouped case-insensitively.
+  // "tesco", "TESCO", "Tesco" all count together; the most-used
+  // spelling becomes the canonical display name.
   const suggestions = useMemo(() => {
-    const counts: Record<string, number> = {};
+    // Step 1: count each exact spelling
+    const exactCounts: Record<string, number> = {};
     for (const t of allTransactions) {
       if (t.merchant && !t.deletedAt) {
-        counts[t.merchant] = (counts[t.merchant] ?? 0) + 1;
+        exactCounts[t.merchant] = (exactCounts[t.merchant] ?? 0) + 1;
       }
     }
-    return Object.entries(counts)
-      .filter(([, n]) => n >= 2)
-      .sort((a, b) => b[1] - a[1])
-      .map(([m]) => m);
+    // Step 2: group by lowercase key — track total uses + most-used spelling
+    const groups: Record<string, { canonical: string; canonicalCount: number; total: number }> = {};
+    for (const [name, count] of Object.entries(exactCounts)) {
+      const key = name.trim().toLowerCase();
+      if (!groups[key]) {
+        groups[key] = { canonical: name, canonicalCount: count, total: count };
+      } else {
+        groups[key].total += count;
+        if (count > groups[key].canonicalCount) {
+          groups[key].canonical = name;
+          groups[key].canonicalCount = count;
+        }
+      }
+    }
+    return Object.values(groups)
+      .filter((g) => g.total >= 2)
+      .sort((a, b) => b.total - a.total)
+      .map((g) => g.canonical);
   }, [allTransactions]);
 
+  // Filter case-insensitively so "tes" matches "Tesco", "TESCO", etc.
   const filtered = value
-    ? suggestions.filter((m) => m.toLowerCase().includes(value.toLowerCase()))
+    ? suggestions.filter((m) => m.toLowerCase().includes(value.trim().toLowerCase()))
     : suggestions;
 
   useEffect(() => {
