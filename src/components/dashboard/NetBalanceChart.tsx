@@ -322,6 +322,8 @@ export default function NetBalanceChart() {
         }
       }
 
+      // Reverse so most-recent period appears on the LEFT (daily is already Mon→Sun so skip)
+      if (period !== 'daily') points.reverse();
       setData(points);
     }
     load();

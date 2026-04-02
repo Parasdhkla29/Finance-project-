@@ -31,7 +31,7 @@ export default function TransactionsPage() {
     loadAccounts();
   }, []);
 
-  const filtered = transactions.filter((t) => {
+  const filtered = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).filter((t) => {
     if (filterType !== 'all' && t.type !== filterType) return false;
     if (search) {
       const q = search.toLowerCase();
