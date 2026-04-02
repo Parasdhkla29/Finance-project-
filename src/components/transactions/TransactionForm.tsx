@@ -114,7 +114,7 @@ function MerchantCombobox({
 
   return (
     <div ref={containerRef} className="relative flex flex-col gap-1">
-      <label className="text-sm font-medium text-slate-300">Merchant / Source</label>
+      <label className="text-sm font-medium text-slate-700">Merchant / Source</label>
       <div className="relative">
         <input
           type="text"
@@ -123,7 +123,7 @@ function MerchantCombobox({
           placeholder="e.g. Tesco, Salary"
           onChange={(e) => { onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          className="w-full rounded-lg px-3 py-2 pr-8 text-sm bg-slate-800 border border-slate-600 hover:border-slate-500 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-150"
+          className="w-full rounded-lg px-3 py-2 pr-8 text-sm bg-white border border-slate-300 hover:border-slate-400 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-150"
         />
         {suggestions.length > 0 && (
           <button
@@ -131,7 +131,7 @@ function MerchantCombobox({
             tabIndex={-1}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setOpen((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-0.5"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
             aria-label="Show merchant suggestions"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
@@ -141,16 +141,16 @@ function MerchantCombobox({
         )}
       </div>
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
           {filtered.slice(0, 8).map((m) => (
             <button
               key={m}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => { onChange(m); setOpen(false); }}
-              className="w-full text-left px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-700/80 active:bg-slate-700 transition-colors flex items-center gap-2.5"
+              className="w-full text-left px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-200 active:bg-slate-100 transition-colors flex items-center gap-2.5"
             >
-              <span className="text-slate-600 text-xs shrink-0">↵</span>
+              <span className="text-slate-400 text-xs shrink-0">↵</span>
               <span className="truncate">{m}</span>
             </button>
           ))}
@@ -267,22 +267,22 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
 
       {/* Single account chip */}
       {activeAccounts.length === 1 && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-slate-900/60 border border-slate-700/60 rounded-xl">
+        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
           <span
             className="w-2.5 h-2.5 rounded-full shrink-0"
             style={{ backgroundColor: activeAccounts[0].color }}
             aria-hidden="true"
           />
-          <span className="text-xs text-slate-400">Account:</span>
-          <span className="text-xs font-medium text-slate-200">{activeAccounts[0].name}</span>
-          <span className="ml-auto text-[10px] text-slate-600 uppercase tracking-wide">{activeAccounts[0].currency}</span>
+          <span className="text-xs text-slate-500">Account:</span>
+          <span className="text-xs font-medium text-slate-800">{activeAccounts[0].name}</span>
+          <span className="ml-auto text-xs text-slate-400 uppercase tracking-wide">{activeAccounts[0].currency}</span>
         </div>
       )}
 
       {/* ── Payment timing (income only) ── */}
       {type === 'income' && (
         <div>
-          <p className="text-sm font-medium text-slate-300 mb-2">When will you receive it?</p>
+          <p className="text-sm font-medium text-slate-700 mb-2">When will you receive it?</p>
           <div className="grid grid-cols-2 gap-2">
             {/* Instant */}
             <button
@@ -290,17 +290,17 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
               onClick={() => setValue('paymentTiming', 'instant')}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
                 paymentTiming === 'instant'
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
-                  : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-300'
+                  : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
               }`}
               aria-pressed={paymentTiming === 'instant'}
             >
-              <span className={`text-base leading-none ${paymentTiming === 'instant' ? 'text-emerald-400' : 'text-slate-500'}`}>
+              <span className={`text-base leading-none ${paymentTiming === 'instant' ? 'text-emerald-600' : 'text-slate-400'}`}>
                 ✓
               </span>
               <div>
                 <p className="text-xs font-semibold leading-none">Instant</p>
-                <p className="text-[10px] mt-0.5 opacity-70">Received today</p>
+                <p className="text-xs mt-0.5 opacity-70">Received today</p>
               </div>
             </button>
 
@@ -310,24 +310,24 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
               onClick={() => setValue('paymentTiming', 'future')}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
                 paymentTiming === 'future'
-                  ? 'bg-sky-500/10 border-sky-500/40 text-sky-300'
-                  : 'bg-slate-800/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+                  ? 'bg-sky-50 border-sky-300 text-sky-300'
+                  : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
               }`}
               aria-pressed={paymentTiming === 'future'}
             >
-              <span className={`text-base leading-none ${paymentTiming === 'future' ? 'text-sky-400' : 'text-slate-500'}`}>
+              <span className={`text-base leading-none ${paymentTiming === 'future' ? 'text-sky-600' : 'text-slate-400'}`}>
                 ⏳
               </span>
               <div>
                 <p className="text-xs font-semibold leading-none">Future payment</p>
-                <p className="text-[10px] mt-0.5 opacity-70">Expected later</p>
+                <p className="text-xs mt-0.5 opacity-70">Expected later</p>
               </div>
             </button>
           </div>
 
           {/* Expected date — only shown when future is selected */}
           {isFuture && (
-            <div className="mt-3 p-3 bg-sky-500/6 border border-sky-500/20 rounded-xl">
+            <div className="mt-3 p-3 bg-sky-50 border border-sky-200 rounded-xl">
               <Input
                 label="Expected date"
                 type="date"
@@ -339,7 +339,7 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
                   validate: (v) => v >= tomorrow() || 'Must be a future date',
                 })}
               />
-              <p className="text-[11px] text-sky-400/70 mt-1.5">
+              <p className="text-xs text-sky-600/70 mt-1.5">
                 This income will appear as "Scheduled" until the expected date.
               </p>
             </div>

@@ -45,7 +45,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -54,21 +54,21 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
       <div
         ref={dialogRef}
         className={clsx(
-          'relative w-full bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-2xl',
+          'relative w-full bg-white border border-slate-200 rounded-t-2xl sm:rounded-2xl',
           'shadow-2xl overflow-hidden flex flex-col',
           'max-h-[90vh]',
           sizeClasses[size],
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
-          <h2 id="modal-title" className="text-base font-semibold text-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
+          <h2 id="modal-title" className="text-base font-semibold text-slate-900">
             {title}
           </h2>
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

@@ -17,20 +17,20 @@ export default function UpcomingBills() {
     .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate));
 
   if (upcoming.length === 0) {
-    return <p className="text-slate-500 text-sm">No bills due in the next 7 days</p>;
+    return <p className="text-slate-400 text-sm">No bills due in the next 7 days</p>;
   }
 
   return (
-    <ul className="divide-y divide-slate-700/50" role="list">
+    <ul className="divide-y divide-slate-200/50" role="list">
       {upcoming.map((sub) => (
         <li key={sub.id} className="flex items-center justify-between py-2.5">
           <div>
-            <p className="text-sm font-medium text-slate-200">{sub.name}</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-sm font-medium text-slate-800">{sub.name}</p>
+            <p className="text-xs text-slate-400">
               Due {format(new Date(sub.nextBillingDate), 'EEE d MMM')}
             </p>
           </div>
-          <span className="text-sm font-semibold text-amber-400">
+          <span className="text-sm font-semibold text-amber-600">
             {formatCurrency(sub.amountMinorUnits, sub.currency)}
           </span>
         </li>

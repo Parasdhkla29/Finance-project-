@@ -13,13 +13,13 @@ export default function Header({ title }: { title?: string }) {
 
   return (
     <header
-      className="flex flex-col border-b border-slate-700 bg-slate-900 shrink-0 lg:hidden"
+      className="flex flex-col border-b border-slate-200 bg-white shrink-0 lg:hidden"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex items-center gap-3 h-14 px-4">
       <button
         onClick={toggleSidebar}
-        className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+        className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
         aria-label="Open navigation menu"
       >
         <MenuIcon />
@@ -28,7 +28,7 @@ export default function Header({ title }: { title?: string }) {
         <div className="w-6 h-6 bg-sky-500 rounded flex items-center justify-center shrink-0">
           <span className="text-white font-bold text-xs">P</span>
         </div>
-        <span className="text-slate-100 font-semibold text-sm">{title ?? 'PrivyLedger'}</span>
+        <span className="text-slate-900 font-semibold text-sm">{title ?? 'PrivyLedger'}</span>
       </div>
       </div>
     </header>

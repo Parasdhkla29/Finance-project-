@@ -124,37 +124,37 @@ export default function SubscriptionsPage() {
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-100">Subscriptions</h1>
+        <h1 className="text-xl font-bold text-slate-900">Subscriptions</h1>
         <Button size="sm" icon={<span>+</span>} onClick={() => { setEditing(undefined); setShowForm(true); }}>Add</Button>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Monthly cost</p>
-          <p className="text-lg font-bold text-amber-400 mt-1">{formatCurrency(Math.round(totalMonthly), 'GBP')}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Monthly cost</p>
+          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(Math.round(totalMonthly), 'GBP')}</p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Annual cost</p>
-          <p className="text-lg font-bold text-amber-400 mt-1">{formatCurrency(Math.round(totalAnnual), 'GBP')}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{subscriptions.filter((s) => s.isActive && !s.deletedAt).length} active subscriptions</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Annual cost</p>
+          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(Math.round(totalAnnual), 'GBP')}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{subscriptions.filter((s) => s.isActive && !s.deletedAt).length} active subscriptions</p>
         </Card>
       </div>
 
       {/* Toggle inactive */}
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-400">
+      <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-500">
         <input
           type="checkbox"
           checked={showInactive}
           onChange={(e) => setShowInactive(e.target.checked)}
-          className="rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-500"
+          className="rounded border-slate-300 bg-white text-sky-500 focus:ring-sky-500"
         />
         Show inactive
       </label>
 
       {/* List */}
       {active.length === 0 ? (
-        <Card><p className="text-slate-500 text-sm text-center py-8">No subscriptions yet. Add your recurring bills!</p></Card>
+        <Card><p className="text-slate-400 text-sm text-center py-8">No subscriptions yet. Add your recurring bills!</p></Card>
       ) : (
         <div className="space-y-3">
           {active.map((sub) => {
@@ -166,13 +166,13 @@ export default function SubscriptionsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-slate-200">{sub.name}</p>
+                      <p className="text-sm font-semibold text-slate-800">{sub.name}</p>
                       {dueThisWeek && !isOverdue && <Badge variant="warning">Due soon</Badge>}
                       {isOverdue && sub.isActive && <Badge variant="danger">Overdue</Badge>}
                       {!sub.isActive && <Badge>Inactive</Badge>}
                       <Badge variant="info">{sub.billingCycle}</Badge>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       {sub.category} · Next: {format(new Date(sub.nextBillingDate), 'd MMM yyyy')}
                     </p>
                     {sub.url && (
@@ -180,19 +180,19 @@ export default function SubscriptionsPage() {
                         href={sub.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-sky-400 hover:underline"
+                        className="text-xs text-sky-600 hover:underline"
                       >
                         {sub.url}
                       </a>
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-slate-100">{formatCurrency(sub.amountMinorUnits, sub.currency)}</p>
-                    <p className="text-xs text-slate-500">≈ £{(monthlyCost(sub) / 100).toFixed(2)}/mo</p>
+                    <p className="text-sm font-bold text-slate-900">{formatCurrency(sub.amountMinorUnits, sub.currency)}</p>
+                    <p className="text-xs text-slate-400">≈ £{(monthlyCost(sub) / 100).toFixed(2)}/mo</p>
                   </div>
                 </div>
 
-                {sub.notes && <p className="text-xs text-slate-400 mt-2 italic">{sub.notes}</p>}
+                {sub.notes && <p className="text-xs text-slate-500 mt-2 italic">{sub.notes}</p>}
 
                 <div className="flex gap-2 mt-3">
                   <Button

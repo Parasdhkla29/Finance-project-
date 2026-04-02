@@ -15,10 +15,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-slate-300"
+            className="text-sm font-medium text-slate-700"
           >
             {label}
-            {props.required && <span className="text-red-400 ml-1" aria-hidden="true">*</span>}
+            {props.required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
           </label>
         )}
         <input
@@ -27,22 +27,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           {...props}
           className={clsx(
             'w-full rounded-lg px-3 py-2 text-sm',
-            'bg-slate-800 border text-slate-100 placeholder-slate-500',
+            'bg-white border text-slate-900 placeholder-slate-400',
             'focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent',
             'transition-colors duration-150',
             error
               ? 'border-red-500 focus:ring-red-500'
-              : 'border-slate-600 hover:border-slate-500',
+              : 'border-slate-300 hover:border-slate-400',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             className,
           )}
         />
         {error && (
-          <p className="text-xs text-red-400" role="alert">
+          <p className="text-xs text-red-600" role="alert">
             {error}
           </p>
         )}
-        {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
+        {hint && !error && <p className="text-xs text-slate-400">{hint}</p>}
       </div>
     );
   },

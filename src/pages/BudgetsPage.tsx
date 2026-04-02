@@ -103,20 +103,20 @@ export default function BudgetsPage() {
     <div className="p-4 lg:p-6 space-y-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-100">Budgets</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Monthly spending limits by category</p>
+          <h1 className="text-xl font-bold text-slate-900">Budgets</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Monthly spending limits by category</p>
         </div>
         <Button size="sm" icon={<span>+</span>} onClick={openAdd}>Add Budget</Button>
       </div>
 
       {/* Month progress context */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-200 rounded-xl">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-slate-400">Month elapsed</span>
-            <span className="text-xs text-slate-400">{dayOfMonth}/{daysInMonth} days · {daysLeft} left</span>
+            <span className="text-xs text-slate-500">Month elapsed</span>
+            <span className="text-xs text-slate-500">{dayOfMonth}/{daysInMonth} days · {daysLeft} left</span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-1.5">
+          <div className="w-full bg-slate-100 rounded-full h-1.5">
             <div className="h-1.5 rounded-full bg-slate-500 transition-all" style={{ width: `${monthElapsedPct}%` }} />
           </div>
         </div>
@@ -125,8 +125,8 @@ export default function BudgetsPage() {
       {active.length === 0 ? (
         <Card>
           <div className="py-10 text-center space-y-3">
-            <p className="text-slate-400 text-sm font-medium">No budgets set yet</p>
-            <p className="text-slate-500 text-xs max-w-xs mx-auto">Create spending limits by category to stay on track each month.</p>
+            <p className="text-slate-500 text-sm font-medium">No budgets set yet</p>
+            <p className="text-slate-400 text-xs max-w-xs mx-auto">Create spending limits by category to stay on track each month.</p>
             <Button onClick={openAdd} icon={<span>+</span>}>Create your first budget</Button>
           </div>
         </Card>
@@ -158,7 +158,7 @@ export default function BudgetsPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-slate-200">{budget.name}</p>
+                      <p className="text-sm font-semibold text-slate-800">{budget.name}</p>
                       <Badge variant="info">{budget.period}</Badge>
                       {isOver && <Badge variant="danger">Over budget</Badge>}
                       {isWarning && !isOver && <Badge variant="warning">80% used</Badge>}
@@ -169,20 +169,20 @@ export default function BudgetsPage() {
                         <Badge variant="success">On pace</Badge>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{budget.category}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{budget.category}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-slate-100">
+                    <p className="text-sm font-bold text-slate-900">
                       {formatCurrency(spent, 'GBP')} / {formatCurrency(budget.amountMinorUnits, 'GBP')}
                     </p>
-                    <p className={`text-xs mt-0.5 ${isOver ? 'text-red-400' : 'text-slate-500'}`}>
+                    <p className={`text-xs mt-0.5 ${isOver ? 'text-red-600' : 'text-slate-400'}`}>
                       {isOver ? `${formatCurrency(Math.abs(remaining), 'GBP')} over` : `${formatCurrency(remaining, 'GBP')} left`}
                     </p>
                   </div>
                 </div>
 
                 {/* Progress bar */}
-                <div className="w-full bg-slate-700 rounded-full h-2 mb-1" role="progressbar" aria-valuenow={Math.min(pct, 100)} aria-valuemin={0} aria-valuemax={100}>
+                <div className="w-full bg-slate-100 rounded-full h-2 mb-1" role="progressbar" aria-valuenow={Math.min(pct, 100)} aria-valuemin={0} aria-valuemax={100}>
                   <div
                     className={`h-2 rounded-full transition-all ${isOver ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500'}`}
                     style={{ width: `${Math.min(pct, 100)}%` }}
@@ -191,9 +191,9 @@ export default function BudgetsPage() {
 
                 {/* Temporal context row */}
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-slate-500">{pct.toFixed(0)}% used · {daysLeft}d left</p>
+                  <p className="text-xs text-slate-400">{pct.toFixed(0)}% used · {daysLeft}d left</p>
                   {!isOver && dailyRate > 0 && (
-                    <p className={`text-xs ${projectedOver ? 'text-amber-400' : 'text-slate-500'}`}>
+                    <p className={`text-xs ${projectedOver ? 'text-amber-600' : 'text-slate-400'}`}>
                       Projected: {formatCurrency(projectedTotal, 'GBP')}{projectedOver ? ' ⚠ over limit' : ''}
                     </p>
                   )}

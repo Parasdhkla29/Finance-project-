@@ -23,7 +23,7 @@ function UtilRing({ used, limit }: { used: number; limit: number }) {
   return (
     <div className="relative w-[60px] h-[60px] shrink-0">
       <svg width="60" height="60" viewBox="0 0 60 60" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="30" cy="30" r={r} fill="none" stroke="#334155" strokeWidth="5" />
+        <circle cx="30" cy="30" r={r} fill="none" stroke="#e2e8f0" strokeWidth="5" />
         <circle
           cx="30" cy="30" r={r} fill="none" stroke={color} strokeWidth="5"
           strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
@@ -48,7 +48,7 @@ function CardVisual({ card }: { card: CreditCard }) {
     card.network === 'amex' ? 'AMEX' : '●●';
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-600 p-5 min-h-[140px] bg-gradient-to-br from-slate-700 to-slate-900">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-300 p-5 min-h-[140px] bg-gradient-to-br from-slate-700 to-slate-900">
       {/* Decorative circles */}
       <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-sky-500/5 pointer-events-none" />
       <div className="absolute -bottom-8 right-8 w-24 h-24 rounded-full bg-purple-500/5 pointer-events-none" />
@@ -57,24 +57,24 @@ function CardVisual({ card }: { card: CreditCard }) {
       <div className="w-8 h-6 rounded bg-gradient-to-br from-amber-400 to-amber-600 mb-5 relative z-10" />
 
       {/* Masked number */}
-      <p className="font-mono text-sm tracking-widest text-slate-400 mb-3 relative z-10">
+      <p className="font-mono text-sm tracking-widest text-slate-500 mb-3 relative z-10">
         •••• •••• •••• {card.last4}
       </p>
 
       {/* Bottom row */}
       <div className="flex items-end justify-between relative z-10">
         <div>
-          <p className="text-sm font-semibold tracking-wide text-slate-100 uppercase">{card.name}</p>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wide">
+          <p className="text-sm font-semibold tracking-wide text-slate-900 uppercase">{card.name}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">
             <span className="opacity-60">EXPIRES</span> {card.expiry}
           </p>
         </div>
-        <p className="text-xl font-bold text-slate-400 opacity-50">{networkLabel}</p>
+        <p className="text-xl font-bold text-slate-500 opacity-50">{networkLabel}</p>
       </div>
 
       {/* Overdue badge */}
       {card.status === 'overdue' && (
-        <div className="absolute top-3 right-3 bg-red-900/40 border border-red-700 rounded px-2 py-0.5 text-[9px] font-bold text-red-400 tracking-widest uppercase">
+        <div className="absolute top-3 right-3 bg-red-900/40 border border-red-700 rounded px-2 py-0.5 text-xs font-bold text-red-600 tracking-widest uppercase">
           Payment Due
         </div>
       )}
@@ -209,9 +209,9 @@ function RecordPaymentForm({ card, onDone }: { card: CreditCard; onDone: () => v
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-500">
         Current balance:{' '}
-        <span className="text-red-400 font-semibold">
+        <span className="text-red-600 font-semibold">
           {formatCurrency(card.balanceMinorUnits, card.currency)}
         </span>
       </p>
@@ -317,7 +317,7 @@ export default function CreditCardsPage() {
     <div className="p-4 lg:p-6 space-y-4 max-w-4xl mx-auto pb-24">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-100">Credit Cards</h1>
+        <h1 className="text-xl font-bold text-slate-900">Credit Cards</h1>
         <Button size="sm" icon={<span>+</span>} onClick={() => { setEditingCard(undefined); setShowAddCard(true); }}>
           Add Card
         </Button>
@@ -326,21 +326,21 @@ export default function CreditCardsPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Total Balance</p>
-          <p className="text-lg font-bold text-red-400 mt-1">{formatCurrency(totalBalance, 'GBP')}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Total Balance</p>
+          <p className="text-lg font-bold text-red-600 mt-1">{formatCurrency(totalBalance, 'GBP')}</p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Min. Due</p>
-          <p className="text-lg font-bold text-amber-400 mt-1">{formatCurrency(totalMinPayment, 'GBP')}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Min. Due</p>
+          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(totalMinPayment, 'GBP')}</p>
         </Card>
       </div>
 
       {/* Empty state */}
       {cards.length === 0 && (
         <Card>
-          <p className="text-slate-500 text-sm text-center py-10">
+          <p className="text-slate-400 text-sm text-center py-10">
             No credit cards added yet.{' '}
-            <button className="text-sky-400 hover:underline" onClick={() => setShowAddCard(true)}>
+            <button className="text-sky-600 hover:underline" onClick={() => setShowAddCard(true)}>
               Add your first card
             </button>
           </p>
@@ -358,14 +358,14 @@ export default function CreditCardsPage() {
                   onClick={() => setActiveIdx(i)}
                   className={`flex-1 px-3 py-2 rounded-xl border text-left transition-all ${
                     activeIdx === i
-                      ? 'border-sky-500 bg-sky-500/10'
-                      : 'border-slate-700 bg-transparent hover:border-slate-500'
+                      ? 'border-sky-500 bg-sky-50'
+                      : 'border-slate-200 bg-transparent hover:border-slate-400'
                   }`}
                 >
-                  <p className={`text-xs font-bold ${activeIdx === i ? 'text-sky-400' : 'text-slate-400'}`}>
+                  <p className={`text-xs font-bold ${activeIdx === i ? 'text-sky-600' : 'text-slate-500'}`}>
                     {cc.name.split(' ')[0]}
                   </p>
-                  <p className="text-[10px] text-slate-500">···· {cc.last4}</p>
+                  <p className="text-xs text-slate-400">···· {cc.last4}</p>
                 </button>
               ))}
             </div>
@@ -381,16 +381,16 @@ export default function CreditCardsPage() {
                 <div className="flex items-center gap-4">
                   <UtilRing used={card.balanceMinorUnits} limit={card.limitMinorUnits} />
                   <div>
-                    <p className="text-sm font-semibold text-slate-200 mb-1">Credit Utilisation</p>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-sm font-semibold text-slate-800 mb-1">Credit Utilisation</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">
                       {formatCurrency(card.balanceMinorUnits, card.currency)} of{' '}
                       {formatCurrency(card.limitMinorUnits, card.currency)} used
                     </p>
                     {card.limitMinorUnits > 0 && (
                       <p className={`text-xs mt-0.5 ${
                         (card.balanceMinorUnits / card.limitMinorUnits) >= 0.3
-                          ? 'text-amber-400'
-                          : 'text-emerald-400'
+                          ? 'text-amber-600'
+                          : 'text-emerald-600'
                       }`}>
                         {(card.balanceMinorUnits / card.limitMinorUnits) >= 0.3
                           ? '⚠ High utilisation hurts your credit score'
@@ -404,32 +404,32 @@ export default function CreditCardsPage() {
               {/* Key details */}
               <Card className="space-y-1">
                 <DetailRow label="Current Balance">
-                  <span className="text-red-400">{formatCurrency(card.balanceMinorUnits, card.currency)}</span>
+                  <span className="text-red-600">{formatCurrency(card.balanceMinorUnits, card.currency)}</span>
                 </DetailRow>
                 <Divider />
                 <DetailRow label="Credit Limit">
-                  <span className="text-slate-200">{formatCurrency(card.limitMinorUnits, card.currency)}</span>
+                  <span className="text-slate-800">{formatCurrency(card.limitMinorUnits, card.currency)}</span>
                 </DetailRow>
                 <DetailRow label="Available Credit">
-                  <span className="text-emerald-400">
+                  <span className="text-emerald-600">
                     {formatCurrency(Math.max(0, card.limitMinorUnits - card.balanceMinorUnits), card.currency)}
                   </span>
                 </DetailRow>
                 <Divider />
                 <DetailRow label="Min. Payment">
-                  <span className="text-amber-400">{formatCurrency(card.minPaymentMinorUnits, card.currency)}</span>
+                  <span className="text-amber-600">{formatCurrency(card.minPaymentMinorUnits, card.currency)}</span>
                 </DetailRow>
                 <DetailRow label="Payment Due">
-                  <span className={card.status === 'overdue' ? 'text-red-400' : 'text-slate-200'}>
+                  <span className={card.status === 'overdue' ? 'text-red-600' : 'text-slate-800'}>
                     {card.dueDate ? format(new Date(card.dueDate), 'd MMM yyyy') : '—'}
                   </span>
                 </DetailRow>
                 <DetailRow label="Purchase APR">
-                  <span className="text-slate-200">{card.apr}%</span>
+                  <span className="text-slate-800">{card.apr}%</span>
                 </DetailRow>
                 {card.cashbackMinorUnits > 0 && (
                   <DetailRow label="Cashback Earned">
-                    <span className="text-emerald-400">{formatCurrency(card.cashbackMinorUnits, card.currency)}</span>
+                    <span className="text-emerald-600">{formatCurrency(card.cashbackMinorUnits, card.currency)}</span>
                   </DetailRow>
                 )}
               </Card>
@@ -456,24 +456,24 @@ export default function CreditCardsPage() {
               {card.transactions.length > 0 && (
                 <>
                   <SectionLabel>Recent Transactions</SectionLabel>
-                  <Card className="divide-y divide-slate-700/50">
+                  <Card className="divide-y divide-slate-200/50">
                     {[...card.transactions]
                       .sort((a, b) => b.date.localeCompare(a.date))
                       .slice(0, 10)
                       .map((t) => (
                         <div key={t.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-slate-700 rounded-xl flex items-center justify-center text-base shrink-0">
+                            <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center text-base shrink-0">
                               {t.icon ?? '💳'}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-200">{t.merchant}</p>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-sm font-medium text-slate-800">{t.merchant}</p>
+                              <p className="text-xs text-slate-400">
                                 {t.category} · {t.date ? format(new Date(t.date), 'd MMM') : ''}
                               </p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-red-400 font-mono">
+                          <span className="text-sm font-bold text-red-600 font-mono">
                             -{formatCurrency(t.amountMinorUnits, t.currency)}
                           </span>
                         </div>
@@ -491,21 +491,21 @@ export default function CreditCardsPage() {
                   desc: card.minPaymentMinorUnits > 0
                     ? `At min ${formatCurrency(card.minPaymentMinorUnits, card.currency)}/mo, cleared in ~${Math.ceil(card.balanceMinorUnits / card.minPaymentMinorUnits)} months. Estimated interest: ${formatCurrency(Math.round(card.balanceMinorUnits * 0.35), card.currency)}.`
                     : 'Set a minimum payment to see this estimate.',
-                  accent: 'text-red-400',
+                  accent: 'text-red-600',
                   border: 'hover:border-red-800',
                 },
                 {
                   icon: '⚡',
                   title: `Pay ${formatCurrency(15000, card.currency)}/month`,
                   desc: `Cleared in ~${Math.ceil(card.balanceMinorUnits / 15000)} months. Estimated interest: ${formatCurrency(Math.round(card.balanceMinorUnits * 0.12), card.currency)}.`,
-                  accent: 'text-amber-400',
+                  accent: 'text-amber-600',
                   border: 'hover:border-amber-800',
                 },
                 {
                   icon: '🚀',
                   title: 'Pay full balance now',
                   desc: `Clear ${formatCurrency(card.balanceMinorUnits, card.currency)} today — zero interest. Frees ${formatCurrency(Math.max(0, card.limitMinorUnits - card.balanceMinorUnits), card.currency)} in available credit.`,
-                  accent: 'text-emerald-400',
+                  accent: 'text-emerald-600',
                   border: 'hover:border-emerald-800',
                 },
               ].map((s, i) => (
@@ -518,7 +518,7 @@ export default function CreditCardsPage() {
                     <span>{s.icon}</span>
                     <span>{s.title}</span>
                   </p>
-                  <p className="text-xs text-slate-400 leading-relaxed">{s.desc}</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
                 </Card>
               ))}
 
@@ -526,17 +526,17 @@ export default function CreditCardsPage() {
               <SectionLabel>📅 Interest Tracker</SectionLabel>
               <Card className="space-y-1">
                 <DetailRow label="Daily interest charge">
-                  <span className="text-amber-400 font-mono text-xs">
+                  <span className="text-amber-600 font-mono text-xs">
                     {formatCurrency(Math.round((card.balanceMinorUnits * card.apr) / 100 / 365), card.currency)}
                   </span>
                 </DetailRow>
                 <DetailRow label="Monthly interest (est.)">
-                  <span className="text-amber-400 font-mono text-xs">
+                  <span className="text-amber-600 font-mono text-xs">
                     {formatCurrency(Math.round((card.balanceMinorUnits * card.apr) / 100 / 12), card.currency)}
                   </span>
                 </DetailRow>
                 <DetailRow label="Interest-free period">
-                  <span className="text-emerald-400 text-xs">Up to 56 days</span>
+                  <span className="text-emerald-600 text-xs">Up to 56 days</span>
                 </DetailRow>
               </Card>
 
@@ -546,7 +546,7 @@ export default function CreditCardsPage() {
                   {card.status.charAt(0).toUpperCase() + card.status.slice(1)}
                 </Badge>
                 {card.notes && (
-                  <p className="text-xs text-slate-500 italic">{card.notes}</p>
+                  <p className="text-xs text-slate-400 italic">{card.notes}</p>
                 )}
               </div>
 
@@ -563,8 +563,8 @@ export default function CreditCardsPage() {
                 ['Fraud alerts', 'Flag unusual transactions for review'],
               ].map(([title, desc], i) => (
                 <Card key={i} onClick={() => showToast(`${title} — coming soon`)} className="cursor-pointer py-3">
-                  <p className="text-xs font-semibold text-slate-300">{title}</p>
-                  <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">{desc}</p>
+                  <p className="text-xs font-semibold text-slate-700">{title}</p>
+                  <p className="text-xs text-slate-400 leading-relaxed mt-0.5">{desc}</p>
                 </Card>
               ))}
             </>
@@ -598,7 +598,7 @@ export default function CreditCardsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-100 z-[200] shadow-xl whitespace-nowrap animate-fade-in">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 z-[200] shadow-xl whitespace-nowrap animate-fade-in">
           {toast}
         </div>
       )}
@@ -610,19 +610,19 @@ export default function CreditCardsPage() {
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-1.5 px-1 rounded-lg hover:bg-slate-700/30 transition-colors">
-      <span className="text-xs text-slate-500">{label}</span>
+    <div className="flex items-center justify-between py-1.5 px-1 rounded-lg hover:bg-slate-100/30 transition-colors">
+      <span className="text-xs text-slate-400">{label}</span>
       <span className="text-xs font-semibold font-mono">{children}</span>
     </div>
   );
 }
 
 function Divider() {
-  return <div className="h-px bg-slate-700/50 my-1" />;
+  return <div className="h-px bg-slate-100 my-1" />;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-bold tracking-widest text-slate-500 uppercase mt-2">{children}</p>
+    <p className="text-xs font-bold tracking-widest text-slate-400 uppercase mt-2">{children}</p>
   );
 }

@@ -76,13 +76,13 @@ function CustomTooltip({ active, payload, label }: {
     pastIncome: 'Past income', pastExpenses: 'Past expenses',
   };
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 shadow-xl">
-      <p className="text-xs font-semibold text-slate-300 mb-1.5">{label}</p>
+    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-xl">
+      <p className="text-xs font-semibold text-slate-700 mb-1.5">{label}</p>
       {payload.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-2 text-xs">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color }} />
-          <span className="text-slate-400">{map[entry.dataKey] ?? entry.dataKey}:</span>
-          <span className="text-slate-100 font-medium ml-auto pl-3">£{(entry.value ?? 0).toFixed(2)}</span>
+          <span className="text-slate-500">{map[entry.dataKey] ?? entry.dataKey}:</span>
+          <span className="text-slate-900 font-medium ml-auto pl-3">£{(entry.value ?? 0).toFixed(2)}</span>
         </div>
       ))}
     </div>
@@ -382,13 +382,13 @@ export default function NetBalanceChart() {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Period pills — hidden when custom range is active */}
           {period !== 'custom' && (
-            <div className="flex gap-1 bg-slate-900/60 rounded-lg p-1">
+            <div className="flex gap-1 bg-slate-50 rounded-lg p-1">
               {basePeriods.map((key) => (
                 <button
                   key={key}
                   onClick={() => setPeriod(key)}
                   className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                    period === key ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-200'
+                    period === key ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-800'
                   }`}
                   aria-pressed={period === key}
                   aria-label={key}
@@ -401,13 +401,13 @@ export default function NetBalanceChart() {
 
           {/* Custom range active badge */}
           {period === 'custom' && customStart && customEnd && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-sky-500/15 border border-sky-500/30 rounded-lg">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 border border-sky-300 rounded-lg">
               <span className="text-xs font-medium text-sky-300">
                 {format(parseISO(customStart), 'MMM d')} – {format(parseISO(customEnd), 'MMM d')}
               </span>
               <button
                 onClick={clearCustomRange}
-                className="text-sky-400 hover:text-white transition-colors leading-none ml-0.5"
+                className="text-sky-600 hover:text-white transition-colors leading-none ml-0.5"
                 aria-label="Clear custom range"
               >
                 ×
@@ -433,7 +433,7 @@ export default function NetBalanceChart() {
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className={`p-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                menuOpen ? 'bg-slate-700 text-slate-200' : 'text-slate-500 hover:text-slate-200 hover:bg-slate-700/60'
+                menuOpen ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-200'
               }`}
               aria-label="Chart options"
             >
@@ -445,48 +445,48 @@ export default function NetBalanceChart() {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800 border border-slate-700/80 rounded-xl shadow-2xl z-20 overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-2xl z-20 overflow-hidden">
                 <div className="px-3 pt-2.5 pb-1">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Chart options</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chart options</p>
                 </div>
 
                 {/* Compare toggle */}
                 <button
                   onClick={() => { setShowComparison((v) => !v); setMenuOpen(false); }}
-                  className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-700/40 transition-colors"
+                  className="flex items-center justify-between w-full px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-100 transition-colors"
                 >
                   <div>
                     <p className="font-medium">Compare past period</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Show prev. equivalent range</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Show prev. equivalent range</p>
                   </div>
                   <div className={`relative ml-3 w-9 h-5 rounded-full transition-colors shrink-0 ${showComparison ? 'bg-sky-500' : 'bg-slate-600'}`}>
                     <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showComparison ? 'translate-x-4' : 'translate-x-0'}`} />
                   </div>
                 </button>
 
-                <div className="border-t border-slate-700/60 mx-3 my-1" />
+                <div className="border-t border-slate-200 mx-3 my-1" />
 
                 {/* Custom date range */}
                 <div className="px-3 pb-1">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Custom date range</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Custom date range</p>
                   <div className="space-y-2">
                     <div>
-                      <label className="text-[10px] text-slate-500 mb-0.5 block">From</label>
+                      <label className="text-xs text-slate-400 mb-0.5 block">From</label>
                       <input
                         type="date"
                         value={customDraft.start}
                         onChange={(e) => setCustomDraft((d) => ({ ...d, start: e.target.value }))}
-                        className="w-full rounded-lg px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                        className="w-full rounded-lg px-2 py-1.5 text-xs bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-slate-500 mb-0.5 block">To</label>
+                      <label className="text-xs text-slate-400 mb-0.5 block">To</label>
                       <input
                         type="date"
                         value={customDraft.end}
                         min={customDraft.start}
                         onChange={(e) => setCustomDraft((d) => ({ ...d, end: e.target.value }))}
-                        className="w-full rounded-lg px-2 py-1.5 text-xs bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                        className="w-full rounded-lg px-2 py-1.5 text-xs bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
                       />
                     </div>
                     <button
@@ -527,10 +527,10 @@ export default function NetBalanceChart() {
             barGap={2}
             onClick={handleChartClick}
           >
-            <CartesianGrid strokeDasharray="2 4" stroke="#1e293b" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} interval={0} />
-            <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `£${v}`} width={44} />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b60', radius: 4 }} />
+            <CartesianGrid strokeDasharray="2 4" stroke="#e2e8f0" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} interval={0} />
+            <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `£${v}`} width={44} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f980', radius: 4 }} />
 
             {showComparison && (
               <>
@@ -559,21 +559,21 @@ export default function NetBalanceChart() {
       </div>
 
       {period === 'daily' && (
-        <p className="text-[10px] text-slate-600 mt-1 text-center">
+        <p className="text-xs text-slate-400 mt-1 text-center">
           Faded bars = future days · scheduled income shown
         </p>
       )}
 
       {/* ── Summary below chart ── */}
-      <div className="mt-4 pt-4 border-t border-slate-700/50">
+      <div className="mt-4 pt-4 border-t border-slate-200">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-semibold text-slate-300 uppercase tracking-wide">
+          <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
             {summaryLabel}
           </p>
           {selectedLabel && (
             <button
               onClick={() => setSelectedLabel(null)}
-              className="text-[10px] text-sky-400 hover:text-sky-300 transition-colors"
+              className="text-xs text-sky-600 hover:text-sky-500 transition-colors"
             >
               Show total ×
             </button>
@@ -582,17 +582,17 @@ export default function NetBalanceChart() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Income</p>
-            <p className="text-2xl font-bold text-emerald-400 tabular-nums mt-1">
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-medium">Income</p>
+            <p className="text-2xl font-bold text-emerald-600 tabular-nums mt-1">
               £{displayIncome.toFixed(2)}
             </p>
             {selectedPoint?.isFutureDay && (
-              <p className="text-[10px] text-sky-400 mt-0.5">Scheduled</p>
+              <p className="text-xs text-sky-600 mt-0.5">Scheduled</p>
             )}
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Expenses</p>
-            <p className="text-2xl font-bold text-red-400 tabular-nums mt-1">
+            <p className="text-xs text-slate-400 uppercase tracking-widest font-medium">Expenses</p>
+            <p className="text-2xl font-bold text-red-600 tabular-nums mt-1">
               £{displayExpenses.toFixed(2)}
             </p>
           </div>
@@ -608,7 +608,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
-      <span className="text-xs text-slate-500">{label}</span>
+      <span className="text-xs text-slate-400">{label}</span>
     </div>
   );
 }

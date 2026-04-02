@@ -127,9 +127,9 @@ function PaymentForm({ loan, onDone }: { loan: Loan; onDone: () => void }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-500">
         Remaining:{' '}
-        <span className="text-slate-200 font-semibold">
+        <span className="text-slate-800 font-semibold">
           {formatCurrency(loan.remainingMinorUnits, loan.currency)}
         </span>
       </p>
@@ -184,7 +184,7 @@ function EditPaymentRow({
   }
 
   return (
-    <li className="px-2 py-2 rounded-lg bg-slate-700/30 border border-slate-600/40">
+    <li className="px-2 py-2 rounded-lg bg-slate-100/30 border border-slate-300/40">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <Input
@@ -219,11 +219,11 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
   return (
-    <div className="mt-3 border-t border-slate-700/50 pt-3">
+    <div className="mt-3 border-t border-slate-200 pt-3">
       {/* Toggle row */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors w-full text-left py-1 rounded-lg px-1 hover:bg-slate-700/30"
+        className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-700 transition-colors w-full text-left py-1 rounded-lg px-1 hover:bg-slate-100/30"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -247,7 +247,7 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
       {open && (
         <ul className="mt-2 space-y-1 animate-slideDown">
           {loan.payments.length === 0 ? (
-            <li className="text-xs text-slate-600 italic px-2 py-1">No payments yet.</li>
+            <li className="text-xs text-slate-400 italic px-2 py-1">No payments yet.</li>
           ) : (
             loan.payments.map((p) =>
               editingPaymentId === p.id ? (
@@ -260,19 +260,19 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
               ) : (
               <li
                 key={p.id}
-                className="group flex items-center justify-between px-2 py-2 rounded-lg hover:bg-slate-700/40 transition-colors"
+                className="group flex items-center justify-between px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 {/* Left: dot + info */}
                 <div className="flex items-center gap-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-emerald-400 font-mono">
+                    <p className="text-xs font-semibold text-emerald-600 font-mono">
                       +{formatCurrency(p.amount, loan.currency)}
                     </p>
-                    <p className="text-[10px] text-slate-500 leading-tight">
+                    <p className="text-xs text-slate-400 leading-tight">
                       {format(new Date(p.date), 'd MMM yyyy')}
                       {p.notes && (
-                        <> · <span className="italic text-slate-600">{p.notes}</span></>
+                        <> · <span className="italic text-slate-400">{p.notes}</span></>
                       )}
                     </p>
                   </div>
@@ -283,7 +283,7 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
                   <button
                     title="Edit payment"
                     onClick={() => setEditingPaymentId(p.id)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-sky-400 hover:bg-sky-900/20 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-900/20 transition-colors"
                     aria-label="Edit payment"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -293,7 +293,7 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
                   <button
                     title="Delete payment"
                     onClick={() => removePayment(loan.id, p.id)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-900/20 transition-colors"
                     aria-label="Delete payment"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -336,7 +336,7 @@ export default function LoansPage() {
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-100">Loans</h1>
+        <h1 className="text-xl font-bold text-slate-900">Loans</h1>
         <Button size="sm" icon={<span>+</span>} onClick={() => { setEditing(undefined); setShowForm(true); }}>
           Add Loan
         </Button>
@@ -345,12 +345,12 @@ export default function LoansPage() {
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">Owed to you</p>
-          <p className="text-lg font-bold text-emerald-400 mt-1">{formatCurrency(lentTotal, 'GBP')}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Owed to you</p>
+          <p className="text-lg font-bold text-emerald-600 mt-1">{formatCurrency(lentTotal, 'GBP')}</p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">You owe</p>
-          <p className="text-lg font-bold text-red-400 mt-1">{formatCurrency(borrowedTotal, 'GBP')}</p>
+          <p className="text-xs text-slate-400 uppercase tracking-wide">You owe</p>
+          <p className="text-lg font-bold text-red-600 mt-1">{formatCurrency(borrowedTotal, 'GBP')}</p>
         </Card>
       </div>
 
@@ -363,7 +363,7 @@ export default function LoansPage() {
             className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
               filterStatus === s
                 ? 'bg-sky-500 text-white'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
             }`}
           >
             {s === 'partially_paid' ? 'Partial' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -374,7 +374,7 @@ export default function LoansPage() {
       {/* Loan list */}
       {filtered.length === 0 ? (
         <Card>
-          <p className="text-slate-500 text-sm text-center py-8">No loans here.</p>
+          <p className="text-slate-400 text-sm text-center py-8">No loans here.</p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -411,7 +411,7 @@ export default function LoansPage() {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-slate-200">{loan.counterparty}</p>
+                        <p className="text-sm font-semibold text-slate-800">{loan.counterparty}</p>
                         <Badge variant={isOverdue ? 'danger' : STATUS_BADGE[loan.status]}>
                           {isOverdue ? 'Overdue' : STATUS_LABELS[loan.status]}
                         </Badge>
@@ -419,17 +419,17 @@ export default function LoansPage() {
                           {loan.direction === 'lent' ? 'Lent' : 'Borrowed'}
                         </Badge>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-400 mt-0.5">
                         Started {format(new Date(loan.startDate), 'd MMM yyyy')}
                         {loan.dueDate && ` · Due ${format(new Date(loan.dueDate), 'd MMM yyyy')}`}
                         {loan.interestRate && ` · ${loan.interestRate}% p.a.`}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-base font-bold text-slate-100">
+                      <p className="text-base font-bold text-slate-900">
                         {formatCurrency(loan.remainingMinorUnits, loan.currency)}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-400">
                         of {formatCurrency(loan.principalMinorUnits, loan.currency)}
                       </p>
                     </div>
@@ -437,7 +437,7 @@ export default function LoansPage() {
 
                   {/* Progress bar */}
                   <div
-                    className="w-full bg-slate-700 rounded-full h-1.5 mb-1"
+                    className="w-full bg-slate-100 rounded-full h-1.5 mb-1"
                     role="progressbar"
                     aria-valuenow={pct}
                     aria-valuemin={0}
@@ -448,10 +448,10 @@ export default function LoansPage() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">{pct.toFixed(0)}% repaid</p>
+                  <p className="text-xs text-slate-400 mb-3">{pct.toFixed(0)}% repaid</p>
 
                   {loan.notes && (
-                    <p className="text-xs text-slate-400 mb-3 italic">{loan.notes}</p>
+                    <p className="text-xs text-slate-500 mb-3 italic">{loan.notes}</p>
                   )}
 
                   {/* Action buttons */}

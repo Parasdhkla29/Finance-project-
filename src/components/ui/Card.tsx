@@ -13,8 +13,8 @@ export default function Card({ children, className, onClick, as: Tag = 'div' }: 
     <Tag
       onClick={onClick}
       className={clsx(
-        'bg-slate-800 border border-slate-700 rounded-xl p-4',
-        onClick && 'cursor-pointer hover:border-slate-500 transition-colors',
+        'bg-white border border-slate-200 rounded-xl p-4',
+        onClick && 'cursor-pointer hover:border-slate-400 transition-colors',
         className,
       )}
     >
@@ -32,5 +32,5 @@ export function CardHeader({ children, className }: { children: ReactNode; class
 }
 
 export function CardTitle({ children }: { children: ReactNode }) {
-  return <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">{children}</h3>;
+  return <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{children}</h3>;
 }

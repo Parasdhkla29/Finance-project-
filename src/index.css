@@ -13,7 +13,7 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100dvh;
-  background-color: #020617;
+  background-color: #f8fafc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* iOS: remove tap flash, prevent body bounce, prevent font size adjustment */
@@ -46,7 +46,7 @@ body {
   height: 100dvh;
 }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar — light theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -55,11 +55,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #94a3b8;
 }
 
 /* Payment history dropdown animation */
@@ -80,11 +80,11 @@ body {
   animation: fadeIn 0.25s ease forwards;
 }
 
-/* Fix autofill background in dark mode */
+/* Fix autofill background in light mode */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #f1f5f9;
-  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset;
+  -webkit-text-fill-color: #0f172a;
+  -webkit-box-shadow: 0 0 0px 1000px #f8fafc inset;
   transition: background-color 5000s ease-in-out 0s;
 }

@@ -16,11 +16,11 @@ const variantClasses: Record<Variant, string> = {
   primary:
     'bg-sky-500 hover:bg-sky-400 text-white focus-visible:ring-sky-500',
   secondary:
-    'bg-slate-700 hover:bg-slate-600 text-slate-100 focus-visible:ring-slate-500',
+    'bg-slate-100 hover:bg-slate-200 text-slate-800 focus-visible:ring-slate-400',
   danger:
     'bg-red-600 hover:bg-red-500 text-white focus-visible:ring-red-500',
   ghost:
-    'bg-transparent hover:bg-slate-700 text-slate-300 focus-visible:ring-slate-500',
+    'bg-transparent hover:bg-slate-100 text-slate-600 focus-visible:ring-slate-400',
   success:
     'bg-emerald-600 hover:bg-emerald-500 text-white focus-visible:ring-emerald-500',
 };
@@ -48,7 +48,7 @@ export default function Button({
       className={clsx(
         'inline-flex items-center justify-center font-medium rounded-lg',
         'transition-colors duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         variantClasses[variant],
         sizeClasses[size],

@@ -34,14 +34,14 @@ const FAB_ITEMS: FabItem[] = [
     icon: '💸',
     label: 'Transaction',
     sub: 'Log income or expense',
-    bg: 'bg-sky-900/60',
+    bg: 'bg-sky-100',
     action: 'transaction',
   },
   {
     icon: '📊',
     label: 'Budget',
     sub: 'Create a spending limit',
-    bg: 'bg-emerald-900/60',
+    bg: 'bg-emerald-100',
     action: 'navigate',
     path: '/budgets',
   },
@@ -49,7 +49,7 @@ const FAB_ITEMS: FabItem[] = [
     icon: '🏦',
     label: 'Loan',
     sub: 'Record borrowed/lent money',
-    bg: 'bg-amber-900/60',
+    bg: 'bg-amber-100',
     action: 'navigate',
     path: '/loans',
   },
@@ -57,7 +57,7 @@ const FAB_ITEMS: FabItem[] = [
     icon: '💳',
     label: 'Credit Card',
     sub: 'Add or manage a card',
-    bg: 'bg-purple-900/60',
+    bg: 'bg-purple-100',
     action: 'navigate',
     path: '/credit-cards',
   },
@@ -65,7 +65,7 @@ const FAB_ITEMS: FabItem[] = [
     icon: '🔁',
     label: 'Subscription',
     sub: 'Track a recurring payment',
-    bg: 'bg-blue-900/60',
+    bg: 'bg-blue-100',
     action: 'navigate',
     path: '/subscriptions',
   },
@@ -73,7 +73,7 @@ const FAB_ITEMS: FabItem[] = [
     icon: '🎯',
     label: 'Goal',
     sub: 'Set a savings target',
-    bg: 'bg-pink-900/60',
+    bg: 'bg-pink-100',
     action: 'navigate',
     path: '/goals',
   },
@@ -108,10 +108,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex h-dvh bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex h-dvh bg-slate-50 text-slate-900 overflow-hidden">
       {/* Desktop sidebar */}
       <aside
-        className="hidden lg:flex lg:w-60 xl:w-64 shrink-0 flex-col bg-slate-900 border-r border-slate-700"
+        className="hidden lg:flex lg:w-60 xl:w-64 shrink-0 flex-col bg-white border-r border-slate-200"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingLeft: 'env(safe-area-inset-left)' }}
       >
         <Sidebar />
@@ -121,11 +121,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {sidebarOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
             aria-hidden="true"
           />
-          <aside className="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 border-r border-slate-700 lg:hidden overflow-y-auto">
+          <aside className="fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 lg:hidden overflow-y-auto">
             <Sidebar mobile />
           </aside>
         </>
@@ -148,7 +148,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {/* Backdrop */}
       {fabOpen && (
         <div
-          className="fixed inset-0 z-30 bg-slate-950/70 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-50/70 backdrop-blur-sm lg:hidden"
           onClick={() => setFabOpen(false)}
           aria-hidden="true"
         />
@@ -164,7 +164,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <button
               key={item.label}
               onClick={() => handleFabItem(item)}
-              className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 min-w-[180px] hover:border-slate-500 hover:bg-slate-750 transition-all active:scale-95 text-left shadow-xl"
+              className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3 min-w-[180px] hover:border-slate-400 hover:bg-slate-100 transition-all active:scale-95 text-left shadow-xl"
               style={{
                 animationDelay: `${i * 30}ms`,
               }}
@@ -173,8 +173,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 {item.icon}
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-100 leading-tight">{item.label}</p>
-                <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{item.sub}</p>
+                <p className="text-sm font-semibold text-slate-900 leading-tight">{item.label}</p>
+                <p className="text-xs text-slate-400 leading-tight mt-0.5">{item.sub}</p>
               </div>
             </button>
           ))}
@@ -184,9 +184,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {/* FAB button */}
       <button
         onClick={() => setFabOpen((o) => !o)}
-        className={`fixed bottom-6 right-4 z-40 lg:hidden w-14 h-14 rounded-[18px] shadow-lg flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+        className={`fixed bottom-6 right-4 z-40 lg:hidden w-14 h-14 rounded-[18px] shadow-lg flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
           fabOpen
-            ? 'bg-slate-800 border border-slate-600 text-slate-200 shadow-none'
+            ? 'bg-white border border-slate-300 text-slate-800 shadow-none'
             : 'bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white shadow-sky-500/30'
         }`}
         aria-label={fabOpen ? 'Close quick-add menu' : 'Open quick-add menu'}

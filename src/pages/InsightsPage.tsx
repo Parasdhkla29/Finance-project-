@@ -64,20 +64,20 @@ function ReportCard({
   to: string;
 }) {
   const colorMap = {
-    green: 'text-emerald-400',
-    red: 'text-red-400',
-    amber: 'text-amber-400',
-    sky: 'text-sky-400',
-    slate: 'text-slate-300',
+    green: 'text-emerald-600',
+    red: 'text-red-600',
+    amber: 'text-amber-600',
+    sky: 'text-sky-600',
+    slate: 'text-slate-700',
   };
   return (
     <Link
       to={to}
-      className="block bg-slate-800 hover:bg-slate-700/70 border border-slate-700 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+      className="block bg-white hover:bg-slate-100/70 border border-slate-200 rounded-xl p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
     >
-      <p className="text-xs text-slate-500 uppercase tracking-wide">{title}</p>
+      <p className="text-xs text-slate-400 uppercase tracking-wide">{title}</p>
       <p className={`text-2xl font-bold mt-1 ${colorMap[color]}`}>{value}</p>
-      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </Link>
   );
 }
@@ -127,14 +127,14 @@ function FinanceReportPanel({ report }: { report: FinanceReport }) {
   }
 
   const severityStyle = {
-    ok: { border: 'border-emerald-500/20 bg-emerald-500/5', text: 'text-emerald-300', dot: 'bg-emerald-400' },
-    warn: { border: 'border-amber-500/20 bg-amber-500/5', text: 'text-amber-300', dot: 'bg-amber-400' },
-    bad: { border: 'border-red-500/20 bg-red-500/8', text: 'text-red-300', dot: 'bg-red-400' },
+    ok: { border: 'border-emerald-200 bg-emerald-500/5', text: 'text-emerald-300', dot: 'bg-emerald-400' },
+    warn: { border: 'border-amber-200 bg-amber-500/5', text: 'text-amber-300', dot: 'bg-amber-400' },
+    bad: { border: 'border-red-200 bg-red-50', text: 'text-red-300', dot: 'bg-red-400' },
   };
 
   return (
     <Card>
-      <CardHeader><CardTitle>Finance Report</CardTitle><span className="text-xs text-slate-500">This month</span></CardHeader>
+      <CardHeader><CardTitle>Finance Report</CardTitle><span className="text-xs text-slate-400">This month</span></CardHeader>
       <div className="space-y-2">
         {tips.map((tip, i) => {
           const s = severityStyle[tip.severity];
@@ -146,7 +146,7 @@ function FinanceReportPanel({ report }: { report: FinanceReport }) {
             >
               <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
               <p className={`text-xs leading-relaxed ${s.text}`}>{tip.text}</p>
-              <span className="ml-auto text-xs text-slate-500 shrink-0">→</span>
+              <span className="ml-auto text-xs text-slate-400 shrink-0">→</span>
             </Link>
           );
         })}
@@ -322,7 +322,7 @@ export default function InsightsPage() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
-      <h1 className="text-xl font-bold text-slate-100">Insights & Analytics</h1>
+      <h1 className="text-xl font-bold text-slate-900">Insights & Analytics</h1>
 
       {/* KPIs — all clickable links */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -358,16 +358,16 @@ export default function InsightsPage() {
           <CardHeader><CardTitle>Smart Alerts</CardTitle></CardHeader>
           <div className="space-y-3">
             {insights.map((insight) => (
-              <div key={insight.id} className="flex items-start gap-3 p-3 bg-slate-900 rounded-xl border border-slate-700">
+              <div key={insight.id} className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200">
                 <Badge variant={INSIGHT_COLORS[insight.type]} className="mt-0.5 shrink-0">
                   {insight.type === 'warning' ? '!' : insight.type === 'success' ? '✓' : 'i'}
                 </Badge>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-200">{insight.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{insight.description}</p>
+                  <p className="text-sm font-semibold text-slate-800">{insight.title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{insight.description}</p>
                 </div>
                 {insight.actionRoute && (
-                  <Link to={insight.actionRoute} className="shrink-0 text-xs text-sky-400 hover:text-sky-300">
+                  <Link to={insight.actionRoute} className="shrink-0 text-xs text-sky-600 hover:text-sky-500">
                     View →
                   </Link>
                 )}
@@ -381,16 +381,16 @@ export default function InsightsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Monthly Cash Flow</CardTitle>
-          <span className="text-xs text-slate-500">Last 6 months</span>
+          <span className="text-xs text-slate-400">Last 6 months</span>
         </CardHeader>
         <div aria-label="Monthly income vs expenses bar chart">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={monthlyData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `£${v}`} width={55} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8 }}
                 formatter={(value: number | undefined, name: string | undefined) => [`£${(value ?? 0).toFixed(2)}`, (name ?? '').charAt(0).toUpperCase() + (name ?? '').slice(1)] as [string, string]}
               />
               <Bar dataKey="income" fill="#10b981" name="income" radius={[4, 4, 0, 0]} />
@@ -405,7 +405,7 @@ export default function InsightsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Top Spending Categories</CardTitle>
-            <span className="text-xs text-slate-500">This month</span>
+            <span className="text-xs text-slate-400">This month</span>
           </CardHeader>
           <div className="space-y-3">
             {topCategories.map((cat, i) => {
@@ -414,10 +414,10 @@ export default function InsightsPage() {
               return (
                 <div key={cat.category}>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300">{cat.category}</span>
-                    <span className="text-slate-400">{formatCurrency(cat.amount, 'GBP')}</span>
+                    <span className="text-slate-700">{cat.category}</span>
+                    <span className="text-slate-500">{formatCurrency(cat.amount, 'GBP')}</span>
                   </div>
-                  <div className="w-full bg-slate-700 rounded-full h-1.5">
+                  <div className="w-full bg-slate-100 rounded-full h-1.5">
                     <div
                       className="h-1.5 rounded-full"
                       style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
@@ -437,13 +437,13 @@ export default function InsightsPage() {
             <CardHeader>
               <CardTitle>Avalanche Method</CardTitle>
             </CardHeader>
-            <p className="text-xs text-slate-500 mb-3">Pay highest interest rate first — minimises total interest paid.</p>
+            <p className="text-xs text-slate-400 mb-3">Pay highest interest rate first — minimises total interest paid.</p>
             <ol className="space-y-2">
               {avalanche.map((loan, i) => (
                 <li key={loan.id} className="flex items-center gap-2 text-sm">
-                  <span className="w-5 h-5 rounded-full bg-slate-700 text-slate-400 flex items-center justify-center text-xs shrink-0">{i + 1}</span>
-                  <span className="text-slate-200 truncate">{loan.counterparty}</span>
-                  <span className="ml-auto text-slate-400 text-xs shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs shrink-0">{i + 1}</span>
+                  <span className="text-slate-800 truncate">{loan.counterparty}</span>
+                  <span className="ml-auto text-slate-500 text-xs shrink-0">
                     {loan.interestRate ?? 0}% · {formatCurrency(loan.remainingMinorUnits, loan.currency)}
                   </span>
                 </li>
@@ -454,13 +454,13 @@ export default function InsightsPage() {
             <CardHeader>
               <CardTitle>Snowball Method</CardTitle>
             </CardHeader>
-            <p className="text-xs text-slate-500 mb-3">Pay smallest balance first — builds momentum and motivation.</p>
+            <p className="text-xs text-slate-400 mb-3">Pay smallest balance first — builds momentum and motivation.</p>
             <ol className="space-y-2">
               {snowball.map((loan, i) => (
                 <li key={loan.id} className="flex items-center gap-2 text-sm">
-                  <span className="w-5 h-5 rounded-full bg-slate-700 text-slate-400 flex items-center justify-center text-xs shrink-0">{i + 1}</span>
-                  <span className="text-slate-200 truncate">{loan.counterparty}</span>
-                  <span className="ml-auto text-slate-400 text-xs shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs shrink-0">{i + 1}</span>
+                  <span className="text-slate-800 truncate">{loan.counterparty}</span>
+                  <span className="ml-auto text-slate-500 text-xs shrink-0">
                     {formatCurrency(loan.remainingMinorUnits, loan.currency)}
                   </span>
                 </li>

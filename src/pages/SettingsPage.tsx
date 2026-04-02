@@ -171,17 +171,17 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-2xl mx-auto">
-      <h1 className="text-xl font-bold text-slate-100">Settings</h1>
+      <h1 className="text-xl font-bold text-slate-900">Settings</h1>
 
       {/* Privacy notice */}
       <Card className="border-emerald-800 bg-emerald-950/30">
         <div className="flex items-start gap-3">
-          <span className="text-emerald-400 text-xl" aria-hidden="true">🔒</span>
+          <span className="text-emerald-600 text-xl" aria-hidden="true">🔒</span>
           <div>
-            <p className="text-sm font-semibold text-emerald-400">Your data is private</p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-sm font-semibold text-emerald-600">Your data is private</p>
+            <p className="text-xs text-slate-500 mt-1">
               All data is stored locally in your browser's IndexedDB. Nothing is sent to any server.
-              On iOS, open this page in Safari and use <strong className="text-slate-300">"Share → Add to Home Screen"</strong> to install it as an app.
+              On iOS, open this page in Safari and use <strong className="text-slate-700">"Share → Add to Home Screen"</strong> to install it as an app.
             </p>
           </div>
         </div>
@@ -213,13 +213,13 @@ export default function SettingsPage() {
           <Button size="sm" variant="secondary" onClick={() => setShowAddAccount(true)}>+ Add</Button>
         </CardHeader>
         {accounts.filter((a) => !a.isArchived && !a.deletedAt).length === 0 ? (
-          <p className="text-slate-500 text-sm">No accounts. Add one to link transactions.</p>
+          <p className="text-slate-400 text-sm">No accounts. Add one to link transactions.</p>
         ) : (
-          <ul className="divide-y divide-slate-700/50">
+          <ul className="divide-y divide-slate-200/50">
             {accounts.filter((a) => !a.isArchived && !a.deletedAt).map((a) => (
               <li key={a.id} className="flex items-center gap-3 py-2.5 relative">
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} aria-hidden="true" />
-                <span className="text-sm text-slate-200 flex-1 truncate">{a.name}</span>
+                <span className="text-sm text-slate-800 flex-1 truncate">{a.name}</span>
                 {defaultAccountId === a.id && (
                   <Badge variant="success">Default</Badge>
                 )}
@@ -230,7 +230,7 @@ export default function SettingsPage() {
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}
-                    className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                     aria-label={`Options for ${a.name}`}
                     aria-expanded={openMenuId === a.id}
                   >
@@ -247,21 +247,21 @@ export default function SettingsPage() {
                         onClick={() => setOpenMenuId(null)}
                         aria-hidden="true"
                       />
-                      <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+                      <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
                         <button
                           onClick={() => {
                             setDefaultAccountId(defaultAccountId === a.id ? null : a.id);
                             setOpenMenuId(null);
                           }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors text-left"
+                          className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-100 transition-colors text-left"
                         >
                           <span className="text-base">{defaultAccountId === a.id ? '☆' : '★'}</span>
                           <span>{defaultAccountId === a.id ? 'Remove default' : 'Set as default'}</span>
                         </button>
-                        <div className="h-px bg-slate-700" />
+                        <div className="h-px bg-slate-100" />
                         <button
                           onClick={() => { setDeleteAccountId(a.id); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
+                          className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-red-600 hover:bg-red-500/10 transition-colors text-left"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
                             <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
@@ -282,7 +282,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>Export Data</CardTitle></CardHeader>
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Download all your data as a portable file.</p>
+          <p className="text-xs text-slate-400">Download all your data as a portable file.</p>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
@@ -314,10 +314,10 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>Import Data</CardTitle></CardHeader>
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">Import from a previous JSON export. Existing records are preserved (upsert by ID).</p>
+          <p className="text-xs text-slate-400">Import from a previous JSON export. Existing records are preserved (upsert by ID).</p>
           <div className="flex flex-wrap gap-2">
             <label className="cursor-pointer">
-              <span className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 transition-colors ${importLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <span className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-600 text-slate-900 transition-colors ${importLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 {importLoading ? 'Importing...' : 'Import JSON'}
               </span>
               <input
@@ -333,7 +333,7 @@ export default function SettingsPage() {
             </Button>
           </div>
           {importResult && (
-            <p className={`text-xs ${importResult.startsWith('Import successful') ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`text-xs ${importResult.startsWith('Import successful') ? 'text-emerald-600' : 'text-red-600'}`}>
               {importResult}
             </p>
           )}
@@ -343,13 +343,13 @@ export default function SettingsPage() {
       {/* iOS Installation tip */}
       <Card>
         <CardHeader><CardTitle>iOS Installation</CardTitle></CardHeader>
-        <div className="space-y-2 text-sm text-slate-400">
+        <div className="space-y-2 text-sm text-slate-500">
           <p>To use PrivyLedger as a native-feeling app on your iPhone or iPad:</p>
           <ol className="list-decimal list-inside space-y-1 text-xs">
-            <li>Open this app in <strong className="text-slate-300">Safari</strong> (not Chrome or other browsers)</li>
-            <li>Tap the <strong className="text-slate-300">Share button</strong> (box with arrow icon)</li>
-            <li>Select <strong className="text-slate-300">"Add to Home Screen"</strong></li>
-            <li>Tap <strong className="text-slate-300">Add</strong></li>
+            <li>Open this app in <strong className="text-slate-700">Safari</strong> (not Chrome or other browsers)</li>
+            <li>Tap the <strong className="text-slate-700">Share button</strong> (box with arrow icon)</li>
+            <li>Select <strong className="text-slate-700">"Add to Home Screen"</strong></li>
+            <li>Tap <strong className="text-slate-700">Add</strong></li>
           </ol>
           <p className="text-xs">The app will run offline and your data stays on your device.</p>
         </div>
@@ -358,7 +358,7 @@ export default function SettingsPage() {
       {/* Danger zone */}
       <Card className="border-red-900">
         <CardHeader><CardTitle>Danger Zone</CardTitle></CardHeader>
-        <p className="text-xs text-slate-500 mb-3">Permanently deletes all data from this device. Export first!</p>
+        <p className="text-xs text-slate-400 mb-3">Permanently deletes all data from this device. Export first!</p>
         <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)}>
           Delete All Data
         </Button>
@@ -367,9 +367,9 @@ export default function SettingsPage() {
       {/* Encrypted Export modal */}
       <Modal open={showEncryptExport} onClose={() => { setShowEncryptExport(false); setEncryptResult(null); setEncryptPassphrase(''); }} title="Encrypted Export" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500">
             Your data will be encrypted with AES-256-GCM using your passphrase before download.
-            <strong className="text-slate-200"> Keep the passphrase safe — it cannot be recovered.</strong>
+            <strong className="text-slate-800"> Keep the passphrase safe — it cannot be recovered.</strong>
           </p>
           <Input
             label="Passphrase"
@@ -378,7 +378,7 @@ export default function SettingsPage() {
             value={encryptPassphrase}
             onChange={(e) => setEncryptPassphrase(e.target.value)}
           />
-          {encryptResult && <p className="text-xs text-emerald-400">{encryptResult}</p>}
+          {encryptResult && <p className="text-xs text-emerald-600">{encryptResult}</p>}
           <div className="flex gap-2">
             <Button className="flex-1" onClick={handleEncryptedExport} disabled={!encryptPassphrase}>Download Encrypted</Button>
             <Button variant="ghost" onClick={() => setShowEncryptExport(false)}>Cancel</Button>
@@ -389,9 +389,9 @@ export default function SettingsPage() {
       {/* Decrypt Import modal */}
       <Modal open={showDecryptImport} onClose={() => { setShowDecryptImport(false); setDecryptResult(null); }} title="Decrypt & Import" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">Paste the contents of your encrypted export file below.</p>
+          <p className="text-sm text-slate-500">Paste the contents of your encrypted export file below.</p>
           <textarea
-            className="w-full h-24 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono resize-none focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full h-24 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-700 font-mono resize-none focus:outline-none focus:ring-2 focus:ring-sky-500"
             placeholder='{"encrypted": "..."}'
             value={decryptInput}
             onChange={(e) => setDecryptInput(e.target.value)}
@@ -403,7 +403,7 @@ export default function SettingsPage() {
             onChange={(e) => setDecryptPassphrase(e.target.value)}
           />
           {decryptResult && (
-            <p className={`text-xs ${decryptResult.includes('success') ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`text-xs ${decryptResult.includes('success') ? 'text-emerald-600' : 'text-red-600'}`}>
               {decryptResult}
             </p>
           )}
@@ -419,10 +419,10 @@ export default function SettingsPage() {
       {/* Delete confirm modal */}
       <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title="Delete All Data?" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">
-            This will permanently delete <strong className="text-red-400">all transactions, loans, subscriptions, budgets, and goals</strong> from this device. This cannot be undone.
+          <p className="text-sm text-slate-500">
+            This will permanently delete <strong className="text-red-600">all transactions, loans, subscriptions, budgets, and goals</strong> from this device. This cannot be undone.
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             Export your data first using the Export section above.
           </p>
           <Input
@@ -452,9 +452,9 @@ export default function SettingsPage() {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500">
             This will remove{' '}
-            <strong className="text-slate-200">
+            <strong className="text-slate-800">
               {accounts.find((a) => a.id === deleteAccountId)?.name ?? 'this account'}
             </strong>{' '}
             from your list. Existing transactions linked to it are preserved.
@@ -487,8 +487,8 @@ export default function SettingsPage() {
           />
           <Select label="Currency" options={CURRENCIES} {...regAccount('currency')} />
           <div>
-            <label className="text-sm font-medium text-slate-300">Color</label>
-            <input type="color" {...regAccount('color')} className="mt-1 block w-12 h-8 rounded cursor-pointer border border-slate-600 bg-transparent" />
+            <label className="text-sm font-medium text-slate-700">Color</label>
+            <input type="color" {...regAccount('color')} className="mt-1 block w-12 h-8 rounded cursor-pointer border border-slate-300 bg-transparent" />
           </div>
           <div className="flex gap-2">
             <Button type="submit" loading={isAddingAccount} className="flex-1">Add Account</Button>

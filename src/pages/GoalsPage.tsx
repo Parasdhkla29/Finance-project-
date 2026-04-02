@@ -106,7 +106,7 @@ function GoalProjection({ goal }: { goal: FinancialGoal }) {
 
     if (daysToTarget <= 0) {
       return (
-        <p className="text-xs text-red-400">Target date has passed</p>
+        <p className="text-xs text-red-600">Target date has passed</p>
       );
     }
 
@@ -116,11 +116,11 @@ function GoalProjection({ goal }: { goal: FinancialGoal }) {
 
     return (
       <div className="space-y-0.5">
-        <p className={`text-xs ${onTrack ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <p className={`text-xs ${onTrack ? 'text-emerald-600' : 'text-amber-600'}`}>
           {daysToTarget}d to target · Need {formatCurrency(monthlyNeeded, goal.currency)}/mo
         </p>
         {!onTrack && dailyRate > 0 && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             At current rate: {formatCurrency(dailyRate * 30, goal.currency)}/mo
           </p>
         )}
@@ -133,7 +133,7 @@ function GoalProjection({ goal }: { goal: FinancialGoal }) {
     const daysNeeded = remaining / dailyRate;
     const projectedDate = new Date(now.getTime() + daysNeeded * 86400000);
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         At current pace: {format(projectedDate, 'MMM yyyy')}
       </p>
     );
@@ -169,23 +169,23 @@ export default function GoalsPage() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xl" aria-hidden="true">{CAT_EMOJI[goal.category] ?? '🎯'}</span>
-              <p className="text-sm font-semibold text-slate-200">{goal.name}</p>
+              <p className="text-sm font-semibold text-slate-800">{goal.name}</p>
               {goal.isAchieved && <Badge variant="success">Achieved!</Badge>}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-400 mt-0.5">
               {GOAL_CATEGORIES.find((c) => c.value === goal.category)?.label}
               {goal.targetDate && ` · Target: ${format(new Date(goal.targetDate), 'd MMM yyyy')}`}
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-sm font-bold text-slate-100">
+            <p className="text-sm font-bold text-slate-900">
               {formatCurrency(goal.currentMinorUnits, goal.currency)}
             </p>
-            <p className="text-xs text-slate-500">of {formatCurrency(goal.targetMinorUnits, goal.currency)}</p>
+            <p className="text-xs text-slate-400">of {formatCurrency(goal.targetMinorUnits, goal.currency)}</p>
           </div>
         </div>
 
-        <div className="w-full bg-slate-700 rounded-full h-2 mb-2" role="progressbar" aria-valuenow={Math.min(pct, 100)} aria-valuemin={0} aria-valuemax={100}>
+        <div className="w-full bg-slate-100 rounded-full h-2 mb-2" role="progressbar" aria-valuenow={Math.min(pct, 100)} aria-valuemin={0} aria-valuemax={100}>
           <div
             className={`h-2 rounded-full transition-all ${goal.isAchieved ? 'bg-emerald-500' : 'bg-sky-500'}`}
             style={{ width: `${Math.min(pct, 100)}%` }}
@@ -193,14 +193,14 @@ export default function GoalsPage() {
         </div>
 
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             {pct.toFixed(0)}% complete
             {!goal.isAchieved && remaining > 0 && ` · ${formatCurrency(remaining, goal.currency)} to go`}
           </p>
           {!goal.isAchieved && <GoalProjection goal={goal} />}
         </div>
 
-        {goal.notes && <p className="text-xs text-slate-400 mb-3 italic">{goal.notes}</p>}
+        {goal.notes && <p className="text-xs text-slate-500 mb-3 italic">{goal.notes}</p>}
 
         <div className="flex gap-2">
           {!goal.isAchieved && (
@@ -223,8 +223,8 @@ export default function GoalsPage() {
     <div className="p-4 lg:p-6 space-y-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-100">Financial Goals</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Track your savings targets and milestones</p>
+          <h1 className="text-xl font-bold text-slate-900">Financial Goals</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Track your savings targets and milestones</p>
         </div>
         <Button size="sm" icon={<span>+</span>} onClick={openAdd}>Add Goal</Button>
       </div>
@@ -232,8 +232,8 @@ export default function GoalsPage() {
       {goals.filter((g) => !g.deletedAt).length === 0 ? (
         <Card>
           <div className="py-10 text-center space-y-3">
-            <p className="text-slate-400 text-sm font-medium">No goals set yet</p>
-            <p className="text-slate-500 text-xs max-w-xs mx-auto">Set a savings target — emergency fund, investment, or anything you're working toward.</p>
+            <p className="text-slate-500 text-sm font-medium">No goals set yet</p>
+            <p className="text-slate-400 text-xs max-w-xs mx-auto">Set a savings target — emergency fund, investment, or anything you're working toward.</p>
             <Button onClick={openAdd} icon={<span>+</span>}>Set your first goal</Button>
           </div>
         </Card>
@@ -241,13 +241,13 @@ export default function GoalsPage() {
         <>
           {active.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">In Progress</h2>
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">In Progress</h2>
               {active.map((g) => <GoalCard key={g.id} goal={g} />)}
             </div>
           )}
           {achieved.length > 0 && (
             <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Achieved</h2>
+              <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Achieved</h2>
               {achieved.map((g) => <GoalCard key={g.id} goal={g} />)}
             </div>
           )}

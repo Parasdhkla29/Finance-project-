@@ -129,8 +129,8 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
           <span className="text-white font-bold text-sm">P</span>
         </div>
         <div>
-          <span className="text-slate-100 font-bold text-base leading-none">PrivyLedger</span>
-          <p className="text-slate-500 text-xs">Your money, your data</p>
+          <span className="text-slate-900 font-bold text-base leading-none">PrivyLedger</span>
+          <p className="text-slate-400 text-xs">Your money, your data</p>
         </div>
       </div>
 
@@ -138,7 +138,7 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
       <ul className="flex flex-col gap-4 flex-1" role="list">
         {NAV_GROUPS.map((group, gi) => (
           <li key={group.label}>
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 mb-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-1">
               {group.label}
             </p>
             <ul className="flex flex-col gap-0.5" role="list">
@@ -151,8 +151,8 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
                       clsx(
                         'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                         isActive
-                          ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50',
+                          ? 'bg-sky-100 text-sky-600 border border-sky-300'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100',
                       )
                     }
                   >
@@ -163,7 +163,7 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
               ))}
             </ul>
             {gi < NAV_GROUPS.length - 1 && (
-              <div className="mt-4 border-t border-slate-800" />
+              <div className="mt-4 border-t border-slate-200" />
             )}
           </li>
         ))}
@@ -177,8 +177,8 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50',
+                  ? 'bg-sky-100 text-sky-600 border border-sky-300'
+                  : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100',
               )
             }
           >
@@ -189,9 +189,9 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
       </ul>
 
       {/* Privacy badge */}
-      <div className="mt-4 px-2 py-3 bg-slate-800 rounded-lg border border-slate-700">
-        <p className="text-xs text-slate-500 leading-relaxed">
-          <span className="text-emerald-400 font-medium">100% local</span> — your data never leaves this device unless you explicitly export it.
+      <div className="mt-4 px-2 py-3 bg-white rounded-lg border border-slate-200">
+        <p className="text-xs text-slate-400 leading-relaxed">
+          <span className="text-emerald-600 font-medium">100% local</span> — your data never leaves this device unless you explicitly export it.
         </p>
       </div>
     </nav>

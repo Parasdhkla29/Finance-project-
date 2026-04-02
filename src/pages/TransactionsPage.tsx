@@ -64,7 +64,7 @@ export default function TransactionsPage() {
     <div className="p-4 lg:p-6 space-y-4 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold text-slate-100">Transactions</h1>
+        <h1 className="text-xl font-bold text-slate-900">Transactions</h1>
         <Button
           onClick={() => { setEditing(undefined); setShowForm(true); }}
           size="sm"
@@ -92,7 +92,7 @@ export default function TransactionsPage() {
               className={`px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
                 filterType === type
                   ? 'bg-sky-500 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                  : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -104,7 +104,7 @@ export default function TransactionsPage() {
       {/* List */}
       {filtered.length === 0 ? (
         <Card>
-          <p className="text-slate-500 text-sm text-center py-8">
+          <p className="text-slate-400 text-sm text-center py-8">
             {transactions.length === 0
               ? 'No transactions yet. Add your first one!'
               : 'No transactions match your filters.'}
@@ -129,7 +129,7 @@ export default function TransactionsPage() {
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className={`text-sm font-medium truncate ${txn.paymentTiming === 'future' ? 'text-slate-400' : 'text-slate-200'}`}>
+                  <p className={`text-sm font-medium truncate ${txn.paymentTiming === 'future' ? 'text-slate-500' : 'text-slate-800'}`}>
                     {txn.merchant ?? txn.category}
                   </p>
                   <TypeBadge type={txn.type} />
@@ -140,7 +140,7 @@ export default function TransactionsPage() {
                     <Badge variant="purple">Recurring</Badge>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-400 mt-0.5">
                   {txn.category}
                   {' · '}
                   {txn.paymentTiming === 'future'
@@ -151,7 +151,7 @@ export default function TransactionsPage() {
                 {txn.tags.length > 0 && (
                   <div className="flex gap-1 mt-1 flex-wrap">
                     {txn.tags.map((tag) => (
-                      <span key={tag} className="text-xs bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">
+                      <span key={tag} className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
                         {tag}
                       </span>
                     ))}
@@ -163,7 +163,7 @@ export default function TransactionsPage() {
               <div className="text-right shrink-0">
                 <p
                   className={`text-sm font-bold ${
-                    txn.type === 'income' ? 'text-emerald-400' : 'text-red-400'
+                    txn.type === 'income' ? 'text-emerald-600' : 'text-red-600'
                   }`}
                 >
                   {txn.type === 'income' ? '+' : '-'}
@@ -175,7 +175,7 @@ export default function TransactionsPage() {
               <div className="flex gap-1 shrink-0">
                 <button
                   onClick={() => openEdit(txn)}
-                  className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
                   aria-label={`Edit ${txn.merchant ?? txn.category}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -184,7 +184,7 @@ export default function TransactionsPage() {
                 </button>
                 <button
                   onClick={() => setConfirmDelete(txn.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-950 rounded-lg transition-colors"
                   aria-label={`Delete ${txn.merchant ?? txn.category}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -213,7 +213,7 @@ export default function TransactionsPage() {
         title="Delete Transaction?"
         size="sm"
       >
-        <p className="text-slate-400 text-sm mb-4">
+        <p className="text-slate-500 text-sm mb-4">
           This will soft-delete the transaction. You can restore it via a JSON export.
         </p>
         <div className="flex gap-2">

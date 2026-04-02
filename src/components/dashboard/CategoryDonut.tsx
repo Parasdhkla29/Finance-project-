@@ -45,7 +45,7 @@ export default function CategoryDonut() {
   }, []);
 
   if (slices.length === 0) {
-    return <p className="text-slate-500 text-sm text-center py-8">No expenses this month</p>;
+    return <p className="text-slate-400 text-sm text-center py-8">No expenses this month</p>;
   }
 
   return (
@@ -66,7 +66,7 @@ export default function CategoryDonut() {
             ))}
           </Pie>
           <Tooltip
-            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+            contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8 }}
             formatter={(value: number | undefined) => [`£${(value ?? 0).toFixed(2)}`] as [string]}
           />
           <Legend
