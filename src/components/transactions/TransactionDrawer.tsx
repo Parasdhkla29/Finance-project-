@@ -15,7 +15,6 @@ interface FormData {
   type: 'income' | 'expense' | 'transfer';
   amount: string;
   date: string;
-  time: string;
   accountId: string;
   toAccountId: string;
   category: string;
@@ -48,7 +47,6 @@ export default function TransactionDrawer({
   const { add, update } = useTransactionStore();
   const { defaultAccountId } = useUIStore();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
-  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
 
   const activeAccounts = accounts.filter((a) => !a.isArchived && !a.deletedAt);
   const defaultAcc = defaultAccountId ?? activeAccounts[0]?.id ?? '';
@@ -59,7 +57,6 @@ export default function TransactionDrawer({
 
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
-  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   const {
     register,
@@ -73,7 +70,6 @@ export default function TransactionDrawer({
       type: initial?.type ?? initialType,
       amount: initial ? String(initial.amountMinorUnits / 100) : '',
       date: !initScheduled ? (initial?.date?.split('T')[0] ?? todayStr) : todayStr,
-      time: timeStr,
       accountId: initial?.accountId ?? defaultAcc,
       toAccountId: initial?.toAccountId ?? '',
       category: initial?.category ?? '',
@@ -99,7 +95,6 @@ export default function TransactionDrawer({
         type: initial?.type ?? initialType,
         amount: initial ? String(initial.amountMinorUnits / 100) : '',
         date: !initScheduled ? (initial?.date?.split('T')[0] ?? todayStr) : todayStr,
-        time: timeStr,
         accountId: initial?.accountId ?? defaultAcc,
         toAccountId: initial?.toAccountId ?? '',
         category: initial?.category ?? '',
@@ -202,7 +197,7 @@ export default function TransactionDrawer({
 
         {/* Scrollable form body */}
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-          <div className="overflow-y-auto flex-1 overscroll-contain">
+          <div className="overflow-y-auto overflow-x-hidden flex-1 overscroll-contain">
             {/* ── Type pills ────────────────────────────────────────── */}
             <div className="px-5 pt-4 pb-3">
               <div className="flex gap-2 bg-slate-100 rounded-2xl p-1">
@@ -308,29 +303,17 @@ export default function TransactionDrawer({
               </div>
             </div>
 
-            {/* ── Date / Time ───────────────────────────────────────── */}
+            {/* ── Date ──────────────────────────────────────────────── */}
             {status === 'completed' && (
-              <div className="px-5 pb-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    {...register('date', { required: true })}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    {...register('time')}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+              <div className="px-5 pb-4">
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  {...register('date', { required: true })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             )}
 
@@ -371,7 +354,7 @@ export default function TransactionDrawer({
             )}
 
             {/* ── Account ───────────────────────────────────────────── */}
-            <div className={`px-5 pb-4 ${type === 'transfer' ? 'grid grid-cols-2 gap-3' : ''}`}>
+            <div className="px-5 pb-4 flex flex-col gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   {type === 'transfer' ? 'From Account' : 'Account'} <span className="text-red-500">*</span>

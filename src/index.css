@@ -20,6 +20,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 /* iOS: remove 300ms tap delay on all interactive elements */
@@ -44,6 +45,7 @@ body {
 
 #root {
   height: 100dvh;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar — light theme */

@@ -1,8 +1,19 @@
 import { create } from 'zustand';
 import { db } from '../core/db';
 import type { Transaction } from '../core/types';
-import { newId, now } from '../core/types';
+import { newId, now, isScheduled } from '../core/types';
 import { getCurrentUserId } from '../auth/useAuthStore';
+
+function sortTransactions(txns: Transaction[]): Transaction[] {
+  return txns.slice().sort((a, b) => {
+    const aS = isScheduled(a);
+    const bS = isScheduled(b);
+    if (aS !== bS) return aS ? -1 : 1;
+    const dateCmp = b.date.localeCompare(a.date);
+    if (dateCmp !== 0) return dateCmp;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
 
 interface TransactionState {
   transactions: Transaction[];
@@ -23,8 +34,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     try {
       const userId = getCurrentUserId();
       const transactions = await db.transactions.forUser(userId).toArray();
-      transactions.sort((a, b) => b.date.localeCompare(a.date));
-      set({ transactions, loading: false });
+      set({ transactions: sortTransactions(transactions), loading: false });
     } catch {
       set({ loading: false });
     }
@@ -35,7 +45,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     const txn: Transaction = { id: newId(), createdAt: now(), updatedAt: now(), ...data };
     await db.transactions.forUser(userId).add(txn);
     set((s) => ({
-      transactions: [txn, ...s.transactions].sort((a, b) => b.date.localeCompare(a.date)),
+      transactions: sortTransactions([txn, ...s.transactions]),
     }));
     return txn;
   },
@@ -45,9 +55,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     const updated = { ...data, updatedAt: now() };
     await db.transactions.forUser(userId).update(id, updated);
     set((s) => ({
-      transactions: s.transactions
-        .map((t) => (t.id === id ? { ...t, ...updated } : t))
-        .sort((a, b) => b.date.localeCompare(a.date)),
+      transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...updated } : t))),
     }));
   },
 
@@ -71,9 +79,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     };
     await db.transactions.forUser(userId).update(id, changes);
     set((s) => ({
-      transactions: s.transactions
-        .map((t) => (t.id === id ? { ...t, ...changes } : t))
-        .sort((a, b) => b.date.localeCompare(a.date)),
+      transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...changes } : t))),
     }));
   },
 }));
