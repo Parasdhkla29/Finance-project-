@@ -2,6 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useUIStore } from '../store/useUIStore';
 import { useAccountStore } from '../store/useAccountStore';
+import { useTransactionStore } from '../store/useTransactionStore';
+import { useLoanStore } from '../store/useLoanStore';
+import { useSubscriptionStore } from '../store/useSubscriptionStore';
+import { useBudgetStore } from '../store/useBudgetStore';
+import { useGoalStore } from '../store/useGoalStore';
 import { useForm } from 'react-hook-form';
 import { exportAllData, downloadJSON, downloadCSV, importData, deleteAllData } from '../core/exportImport';
 import { encryptData, decryptData } from '../core/crypto';
@@ -47,6 +52,11 @@ interface AccountFormData {
 export default function SettingsPage() {
   const { theme, currency, defaultAccountId, setTheme, setCurrency, setDefaultAccountId } = useUIStore();
   const { accounts, load: loadAccounts, add: addAccount, remove: removeAccount } = useAccountStore();
+  const loadTransactions = useTransactionStore((s) => s.load);
+  const loadLoans = useLoanStore((s) => s.load);
+  const loadSubscriptions = useSubscriptionStore((s) => s.load);
+  const loadBudgets = useBudgetStore((s) => s.load);
+  const loadGoals = useGoalStore((s) => s.load);
 
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -104,7 +114,16 @@ export default function SettingsPage() {
     try {
       const text = await file.text();
       await importData(text);
-      setImportResult('Import successful!');
+      setImportResult('Import successful! Reloading data...');
+      await Promise.all([
+        loadAccounts(),
+        loadTransactions(),
+        loadLoans(),
+        loadSubscriptions(),
+        loadBudgets(),
+        loadGoals(),
+      ]);
+      setImportResult('Import successful! All data loaded.');
     } catch (err) {
       setImportResult(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
