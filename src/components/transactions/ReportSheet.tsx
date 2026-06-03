@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import BottomSheet from '../ui/BottomSheet';
 import type { Transaction, Account } from '../../core/types';
 import { formatCurrency, isScheduled } from '../../core/types';
@@ -17,7 +17,7 @@ function fmt(minor: number): string {
   return formatCurrency(minor, 'GBP');
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 mt-4">
       {children}
