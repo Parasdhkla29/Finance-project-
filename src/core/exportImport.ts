@@ -1,4 +1,5 @@
 import { db } from './db';
+import { getCurrentUserId } from '../auth/useAuthStore';
 import type { Account, Transaction, Loan, Subscription, Budget, FinancialGoal } from './types';
 
 const EXPORT_VERSION = 1;
@@ -15,13 +16,14 @@ export interface ExportPayload {
 }
 
 export async function exportAllData(): Promise<string> {
+  const userId = getCurrentUserId();
   const [accounts, transactions, loans, subscriptions, budgets, goals] = await Promise.all([
-    db.accounts.toArray(),
-    db.transactions.toArray(),
-    db.loans.toArray(),
-    db.subscriptions.toArray(),
-    db.budgets.toArray(),
-    db.goals.toArray(),
+    db.accounts.forUser(userId).toArray(),
+    db.transactions.forUser(userId).toArray(),
+    db.loans.forUser(userId).toArray(),
+    db.subscriptions.forUser(userId).toArray(),
+    db.budgets.forUser(userId).toArray(),
+    db.goals.forUser(userId).toArray(),
   ]);
 
   const payload: ExportPayload = {
@@ -76,16 +78,24 @@ export async function importData(jsonString: string): Promise<void> {
   const data = JSON.parse(jsonString) as ExportPayload;
   if (data.version !== EXPORT_VERSION) throw new Error('Unsupported export version');
 
+  const userId = getCurrentUserId();
+
+  // Ensure every imported record is owned by the current user, regardless of
+  // which user originally created it (handles cross-device / re-login scenarios).
+  function stamp<T>(arr: T[]): T[] {
+    return (arr ?? []).map((r) => ({ ...(r as Record<string, unknown>), userId })) as T[];
+  }
+
   await db.transaction(
     'rw',
     [db.accounts, db.transactions, db.loans, db.subscriptions, db.budgets, db.goals],
     async () => {
-      await db.accounts.bulkPut(data.accounts ?? []);
-      await db.transactions.bulkPut(data.transactions ?? []);
-      await db.loans.bulkPut(data.loans ?? []);
-      await db.subscriptions.bulkPut(data.subscriptions ?? []);
-      await db.budgets.bulkPut(data.budgets ?? []);
-      await db.goals.bulkPut(data.goals ?? []);
+      await db.accounts.bulkPut(stamp(data.accounts));
+      await db.transactions.bulkPut(stamp(data.transactions));
+      await db.loans.bulkPut(stamp(data.loans));
+      await db.subscriptions.bulkPut(stamp(data.subscriptions));
+      await db.budgets.bulkPut(stamp(data.budgets));
+      await db.goals.bulkPut(stamp(data.goals));
     },
   );
 }
