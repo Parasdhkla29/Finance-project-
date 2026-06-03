@@ -33,16 +33,29 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
 }
 
 function exportTransactionsCsv(transactions: Record<string, unknown>[], username: string) {
-  const rows = transactions.map((t) => ({
-    date: (t as any).transaction_date ?? (t as any).date ?? '',
-    type: (t as any).type ?? '',
-    category: (t as any).category ?? '',
-    merchant: (t as any).merchant ?? '',
-    notes: (t as any).notes ?? '',
-    amount: (((t as any).amount_minor_units ?? 0) / 100).toFixed(2),
-    currency: (t as any).currency ?? '',
-    status: (t as any).status ?? '',
-  }));
+  const rows = transactions.map((t) => {
+    const row = t as any;
+    const tags: string[] = Array.isArray(row.tags)
+      ? row.tags
+      : typeof row.tags === 'string'
+        ? row.tags.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [];
+    return {
+      date: row.transaction_date ?? row.date ?? '',
+      type: row.type ?? '',
+      category: row.category ?? '',
+      merchant: row.merchant ?? '',
+      notes: row.notes ?? '',
+      amount: ((row.amount_minor_units ?? 0) / 100).toFixed(2),
+      currency: row.currency ?? '',
+      status: row.status ?? '',
+      payment_method: row.payment_method ?? '',
+      payment_timing: row.payment_timing ?? '',
+      tags: tags.join('; '),
+      is_recurring: row.is_recurring ? 'Yes' : 'No',
+      account_id: row.account_id ?? '',
+    };
+  });
   downloadBlob(objectsToCsv(rows), `transactions_${username}.csv`, 'text/csv');
 }
 
@@ -289,6 +302,37 @@ function Td({ children, className }: { children: React.ReactNode; className?: st
   );
 }
 
+function TdWrap({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <td className={`px-4 py-3 text-gray-700 max-w-[180px] ${className ?? ''}`}>
+      {children}
+    </td>
+  );
+}
+
+function formatPaymentMethod(raw: string | null | undefined): string {
+  if (!raw) return '—';
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function TagsList({ raw }: { raw: unknown }) {
+  const tags: string[] = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string' && raw
+      ? raw.split(',').map((t) => t.trim()).filter(Boolean)
+      : [];
+  if (tags.length === 0) return <span className="text-gray-400">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+          {tag}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Transactions tab ──────────────────────────────────────────────────────
 
 type TxTypeFilter = 'all' | 'income' | 'expense' | 'transfer';
@@ -385,10 +429,15 @@ function TransactionsTab({
             <tr>
               <Th>Date</Th>
               <Th>Type</Th>
-              <Th>Category</Th>
-              <Th>Merchant</Th>
               <Th>Amount</Th>
               <Th>Status</Th>
+              <Th>Category</Th>
+              <Th>Merchant</Th>
+              <Th>Notes</Th>
+              <Th>Tags</Th>
+              <Th>Payment Method</Th>
+              <Th>Timing</Th>
+              <Th>Recurring</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -401,17 +450,49 @@ function TransactionsTab({
                   : type === 'expense'
                     ? 'text-red-600 font-semibold'
                     : 'text-gray-700';
+              const notes: string = row.notes ?? '';
               return (
-                <tr key={row.id ?? i} className="hover:bg-gray-50">
+                <tr key={row.id ?? i} className="hover:bg-gray-50 align-top">
                   <Td>{formatDate(row.transaction_date ?? row.date)}</Td>
                   <Td><TxTypeBadge type={row.type} /></Td>
-                  <Td>{row.category ?? '—'}</Td>
-                  <Td>{row.merchant ?? '—'}</Td>
                   <Td className={amountColor}>
                     {type === 'expense' ? '−' : ''}
                     {formatCurrency(row.amount_minor_units, row.currency)}
                   </Td>
-                  <Td><StatusPill status={row.status} /></Td>
+                  <Td><StatusPill status={row.status ?? 'completed'} /></Td>
+                  <Td>{row.category ?? '—'}</Td>
+                  <Td>{row.merchant ?? '—'}</Td>
+                  <TdWrap>
+                    {notes ? (
+                      <span title={notes} className="block truncate text-sm text-gray-600">
+                        {notes}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </TdWrap>
+                  <TdWrap><TagsList raw={row.tags} /></TdWrap>
+                  <Td>{formatPaymentMethod(row.payment_method)}</Td>
+                  <Td>
+                    {row.payment_timing ? (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                        row.payment_timing === 'future'
+                          ? 'bg-sky-100 text-sky-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {row.payment_timing}
+                      </span>
+                    ) : '—'}
+                  </Td>
+                  <Td>
+                    {row.is_recurring ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
+                        Yes
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">No</span>
+                    )}
+                  </Td>
                 </tr>
               );
             })}
