@@ -533,7 +533,7 @@ export default function ReportSheet({
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800 truncate">
-                        {t.merchant ?? t.category}
+                        {t.notes || t.merchant || t.category}
                       </p>
                       <p className="text-xs text-slate-400">
                         {isScheduled(t) ? 'Scheduled' : t.date.split('T')[0]} · {t.category}
@@ -664,7 +664,7 @@ export default function ReportSheet({
                   <div key={t.id} className="bg-purple-50 rounded-xl p-3 border border-purple-100">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">{t.merchant ?? t.category}</p>
+                        <p className="text-sm font-semibold text-slate-800">{t.notes || t.merchant || t.category}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {t.hasFixedScheduleDate
                             ? `Expected: ${t.date.split('T')[0]}`

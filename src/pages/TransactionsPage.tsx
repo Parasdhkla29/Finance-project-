@@ -199,9 +199,9 @@ function TxnCard({
         <div className="flex-1 px-3 py-3 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              {/* Merchant */}
+              {/* Title: notes > merchant > category */}
               <p className="text-sm font-semibold text-slate-900 truncate">
-                {txn.merchant ?? txn.category}
+                {txn.notes || txn.merchant || txn.category}
               </p>
 
               {/* Chips row */}
@@ -218,11 +218,6 @@ function TxnCard({
                   </span>
                 )}
               </div>
-
-              {/* Notes */}
-              {txn.notes && (
-                <p className="text-xs text-slate-400 mt-1 truncate">{txn.notes}</p>
-              )}
 
               {/* Date */}
               <p className="text-xs text-slate-400 mt-1">
@@ -344,9 +339,9 @@ function ScheduledCard({
 
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              {/* Merchant */}
+              {/* Title: notes > merchant > category */}
               <p className="text-sm font-semibold text-slate-900 truncate">
-                {txn.merchant ?? txn.category}
+                {txn.notes || txn.merchant || txn.category}
               </p>
 
               {/* Category chip */}
@@ -355,11 +350,6 @@ function ScheduledCard({
                   <span>{CATEGORY_EMOJIS[txn.category] ?? '📌'}</span>
                   {txn.category}
                 </span>
-              )}
-
-              {/* Notes */}
-              {txn.notes && (
-                <p className="text-xs text-slate-500 mt-1 truncate">{txn.notes}</p>
               )}
 
               {/* Date */}

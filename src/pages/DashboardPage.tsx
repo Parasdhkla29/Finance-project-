@@ -552,7 +552,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-medium text-slate-800 truncate">{txn.merchant ?? txn.category}</p>
+                        <p className="text-sm font-medium text-slate-800 truncate">{txn.notes || txn.merchant || txn.category}</p>
                         {isScheduled && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold tracking-wide bg-sky-100 text-sky-600 ring-1 ring-sky-300 uppercase shrink-0">
                             Scheduled
