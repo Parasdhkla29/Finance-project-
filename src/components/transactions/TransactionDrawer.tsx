@@ -393,17 +393,14 @@ export default function TransactionDrawer({
             {/* ── Notes / Remark ────────────────────────────────────── */}
             <div className="px-5 pb-4">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Notes / Remark <span className="text-red-500">*</span>
+                Notes / Remark
               </label>
               <textarea
                 rows={3}
-                placeholder="Describe this transaction..."
-                {...register('notes', { required: 'Notes is required' })}
+                placeholder="Describe this transaction... (optional)"
+                {...register('notes')}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
-              {errors.notes && (
-                <p className="text-xs text-red-500 mt-1">{errors.notes.message}</p>
-              )}
             </div>
 
             {/* ── Category ──────────────────────────────────────────── */}

@@ -275,7 +275,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const avatarInitial = username ? username.charAt(0).toUpperCase() : 'A';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* ── Desktop sidebar (fixed) ── */}
       <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col h-screen fixed inset-y-0 left-0 z-30">
         <SidebarContent />
@@ -315,7 +315,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Main content area ── */}
       <div className="md:ml-64 min-h-screen flex flex-col">
         {/* ── Top header ── */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center sticky top-0 z-20">
+        <header
+          className="bg-white border-b border-gray-200 px-4 flex justify-between items-center sticky top-0 z-20"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)',
+            paddingBottom: '0.75rem',
+          }}
+        >
           <div className="flex items-center gap-3">
             {/* Mobile hamburger */}
             <button
@@ -347,7 +353,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* ── Page content ── */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
           {children}
         </main>
       </div>

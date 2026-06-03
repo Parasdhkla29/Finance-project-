@@ -264,10 +264,8 @@ export default function TransactionForm({ initial, onDone }: TransactionFormProp
 
       <Textarea
         label="Notes"
-        placeholder="Describe this transaction..."
-        required
-        error={errors.notes?.message}
-        {...register('notes', { required: 'Notes is required' })}
+        placeholder="Describe this transaction... (optional)"
+        {...register('notes')}
       />
 
       <Select
