@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useUIStore } from '../../store/useUIStore';
+import { useAuthStore } from '../../auth/useAuthStore';
 
 interface NavItem {
   to: string;
@@ -108,8 +109,24 @@ interface SidebarProps {
   mobile?: boolean;
 }
 
+function LogoutIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h7a1 1 0 000-2H4V5h6a1 1 0 000-2H3zm11.707 4.293a1 1 0 010 1.414L13.414 10l1.293 1.293a1 1 0 01-1.414 1.414l-2-2a1 1 0 010-1.414l2-2a1 1 0 011.414 0z" clipRule="evenodd" />
+      <path fillRule="evenodd" d="M7 10a1 1 0 011-1h8a1 1 0 110 2H8a1 1 0 01-1-1z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 export default function Sidebar({ mobile = false }: SidebarProps) {
   const { setSidebarOpen } = useUIStore();
+  const logout = useAuthStore((s) => s.logout);
+  const user = useAuthStore((s) => s.user);
+
+  function handleLogout() {
+    setSidebarOpen(false);
+    void logout();
+  }
 
   return (
     <nav
@@ -168,8 +185,8 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
           </li>
         ))}
 
-        {/* Settings always at bottom */}
-        <li className="mt-auto">
+        {/* Settings + Logout at bottom */}
+        <li className="mt-auto flex flex-col gap-0.5">
           <NavLink
             to="/settings"
             onClick={() => mobile && setSidebarOpen(false)}
@@ -185,15 +202,29 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
             <CogIcon />
             Settings
           </NavLink>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors w-full text-left"
+          >
+            <LogoutIcon />
+            Logout
+          </button>
         </li>
       </ul>
 
-      {/* Privacy badge */}
-      <div className="mt-4 px-2 py-3 bg-white rounded-lg border border-slate-200">
-        <p className="text-xs text-slate-400 leading-relaxed">
-          <span className="text-emerald-600 font-medium">100% local</span> — your data never leaves this device unless you explicitly export it.
-        </p>
-      </div>
+      {/* User info */}
+      {user && (
+        <div className="mt-4 px-2 py-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-sky-500 flex items-center justify-center shrink-0">
+            <span className="text-white text-xs font-bold">{user.fullName.charAt(0).toUpperCase()}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-700 truncate">{user.fullName}</p>
+            <p className="text-xs text-slate-400 truncate">@{user.username}</p>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
