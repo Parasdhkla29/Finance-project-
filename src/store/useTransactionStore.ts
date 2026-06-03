@@ -10,6 +10,7 @@ interface TransactionState {
   add: (data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Transaction>;
   update: (id: string, data: Partial<Transaction>) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  markCompleted: (id: string) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set) => ({
@@ -53,5 +54,24 @@ export const useTransactionStore = create<TransactionState>((set) => ({
   remove: async (id) => {
     await db.transactions.update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) }));
+  },
+
+  markCompleted: async (id) => {
+    const today = new Date().toISOString().split('T')[0];
+    const completedAt = now();
+    const changes = {
+      status: 'completed' as const,
+      paymentTiming: 'instant' as const,
+      date: today,
+      completedAt,
+      hasFixedScheduleDate: undefined,
+      updatedAt: now(),
+    };
+    await db.transactions.update(id, changes);
+    set((s) => ({
+      transactions: s.transactions
+        .map((t) => (t.id === id ? { ...t, ...changes } : t))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    }));
   },
 }));

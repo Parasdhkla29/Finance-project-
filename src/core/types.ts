@@ -23,11 +23,21 @@ export interface Account extends BaseEntity {
 // ── Transaction ────────────────────────────────────────────────────────────
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
-export type PaymentMethod = 'card' | 'cash' | 'bank_transfer' | 'direct_debit' | 'other';
+export type PaymentMethod =
+  | 'card'
+  | 'cash'
+  | 'bank_transfer'
+  | 'direct_debit'
+  | 'online'
+  | 'standing_order'
+  | 'wallet'
+  | 'other';
 export type PaymentTiming = 'instant' | 'future';
+export type TransactionStatus = 'completed' | 'scheduled';
 
 export interface Transaction extends BaseEntity {
   accountId: string;
+  toAccountId?: string; // for transfer destination
   type: TransactionType;
   amountMinorUnits: number; // pence/cents — avoids float errors
   currency: Currency;
@@ -35,12 +45,20 @@ export interface Transaction extends BaseEntity {
   subcategory?: string;
   merchant?: string;
   notes?: string;
-  date: string; // ISO 8601 — for future payments this is the expected receipt date
+  date: string; // ISO 8601 — for scheduled without fixed date, equals today at save time
   paymentMethod?: PaymentMethod;
-  paymentTiming?: PaymentTiming; // 'instant' (default) | 'future' (scheduled income)
+  paymentTiming?: PaymentTiming; // kept for backward compat; prefer status
+  status?: TransactionStatus; // 'completed' | 'scheduled'
+  hasFixedScheduleDate?: boolean; // false = no specific due date chosen
+  completedAt?: string; // ISO timestamp when marked completed
   tags: string[];
   isRecurring: boolean;
   recurringId?: string;
+}
+
+/** True if the transaction is scheduled/pending (not yet completed) */
+export function isScheduled(t: Transaction): boolean {
+  return t.status === 'scheduled' || t.paymentTiming === 'future';
 }
 
 // ── Loan ───────────────────────────────────────────────────────────────────

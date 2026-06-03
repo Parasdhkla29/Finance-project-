@@ -80,6 +80,31 @@ body {
   animation: fadeIn 0.25s ease forwards;
 }
 
+/* ── Bottom sheet / overlay animations ──────────────────────────────── */
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sheet-slide-up {
+  animation: sheet-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fade-in-quick {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.fade-in {
+  animation: fade-in-quick 0.2s ease forwards;
+}
+
+@keyframes toast-pop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.96); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.toast-pop {
+  animation: toast-pop 0.22s ease forwards;
+}
+
 /* Fix autofill background in light mode */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
