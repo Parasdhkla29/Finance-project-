@@ -25,7 +25,13 @@ import AdminUserDetailPage from './admin/pages/AdminUserDetailPage';
 import AdminActivityPage from './admin/pages/AdminActivityPage';
 import AdminReportsPage from './admin/pages/AdminReportsPage';
 
-import { seedDefaultAccount } from './store/useAccountStore';
+import { seedDefaultAccount, useAccountStore } from './store/useAccountStore';
+import { useTransactionStore } from './store/useTransactionStore';
+import { useLoanStore } from './store/useLoanStore';
+import { useSubscriptionStore } from './store/useSubscriptionStore';
+import { useBudgetStore } from './store/useBudgetStore';
+import { useGoalStore } from './store/useGoalStore';
+import { useCreditCardStore } from './store/useCreditCardStore';
 import { processRecurringRules } from './core/recurring';
 import { applyTheme } from './store/useUIStore';
 
@@ -51,6 +57,19 @@ function useAppInit() {
     void initSession();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Clear all store data when user logs out to prevent data leaking to the next user
+  useEffect(() => {
+    if (!user) {
+      useAccountStore.setState({ accounts: [] });
+      useTransactionStore.setState({ transactions: [] });
+      useLoanStore.setState({ loans: [] });
+      useSubscriptionStore.setState({ subscriptions: [] });
+      useBudgetStore.setState({ budgets: [] });
+      useGoalStore.setState({ goals: [] });
+      useCreditCardStore.setState({ cards: [] });
+    }
+  }, [user]);
 
   // After a regular user logs in, seed their default account and generate recurring transactions
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { db } from './db';
+import { getCurrentUserId } from '../auth/useAuthStore';
 import { addDays, addWeeks, addMonths, addQuarters, addYears, isBefore } from 'date-fns';
 import type { Transaction } from './types';
 import { newId, now } from './types';
@@ -21,9 +22,11 @@ function nextOccurrence(from: Date, frequency: string): Date {
  * Returns the number of new transactions created.
  */
 export async function processRecurringRules(): Promise<number> {
+  const userId = getCurrentUserId();
   const rules = await db.recurringRules
-    .filter((r) => r.isActive && !r.deletedAt)
-    .toArray();
+    .forUser(userId)
+    .toArray()
+    .then((all) => all.filter((r) => r.isActive && !r.deletedAt));
 
   let created = 0;
   const today = new Date();
@@ -62,7 +65,7 @@ export async function processRecurringRules(): Promise<number> {
     }
 
     if (newTxns.length > 0) {
-      await db.transactions.bulkAdd(newTxns);
+      await db.transactions.forUser(userId).bulkAdd(newTxns);
       await db.recurringRules.update(rule.id, {
         lastGeneratedDate: newTxns[newTxns.length - 1].date,
         updatedAt: now(),

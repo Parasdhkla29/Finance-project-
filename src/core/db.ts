@@ -122,6 +122,18 @@ class UserScopedTable<T extends { id: string }> {
     if (error) throw new Error(`[DB] ${this.tableName}.forUser.count: ${error.message}`);
     return count ?? 0;
   }
+
+  async bulkAdd(objs: T[]): Promise<void> {
+    if (objs.length === 0) return;
+    const { error } = await supabase
+      .from(this.tableName)
+      .insert(objs.map((o) => {
+        const dbObj = toDb(o as unknown as Record<string, unknown>);
+        dbObj['user_id'] = this.userId;
+        return dbObj;
+      }));
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.bulkAdd: ${error.message}`);
+  }
 }
 
 // ── Filtered-table proxy (client-side filter, mirrors Dexie behaviour) ──────
