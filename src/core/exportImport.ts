@@ -80,24 +80,14 @@ export async function importData(jsonString: string): Promise<void> {
 
   const userId = getCurrentUserId();
 
-  // Ensure every imported record is owned by the current user, regardless of
-  // which user originally created it (handles cross-device / re-login scenarios).
-  function stamp<T>(arr: T[]): T[] {
-    return (arr ?? []).map((r) => ({ ...(r as Record<string, unknown>), userId })) as T[];
-  }
-
-  await db.transaction(
-    'rw',
-    [db.accounts, db.transactions, db.loans, db.subscriptions, db.budgets, db.goals],
-    async () => {
-      await db.accounts.bulkPut(stamp(data.accounts));
-      await db.transactions.bulkPut(stamp(data.transactions));
-      await db.loans.bulkPut(stamp(data.loans));
-      await db.subscriptions.bulkPut(stamp(data.subscriptions));
-      await db.budgets.bulkPut(stamp(data.budgets));
-      await db.goals.bulkPut(stamp(data.goals));
-    },
-  );
+  await Promise.all([
+    db.accounts.forUser(userId).bulkPut(data.accounts ?? []),
+    db.transactions.forUser(userId).bulkPut(data.transactions ?? []),
+    db.loans.forUser(userId).bulkPut(data.loans ?? []),
+    db.subscriptions.forUser(userId).bulkPut(data.subscriptions ?? []),
+    db.budgets.forUser(userId).bulkPut(data.budgets ?? []),
+    db.goals.forUser(userId).bulkPut(data.goals ?? []),
+  ]);
 }
 
 export async function deleteAllData(): Promise<void> {

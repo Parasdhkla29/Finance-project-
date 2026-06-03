@@ -135,6 +135,21 @@ class UserScopedTable<T extends { id: string }> {
     if (error) throw new Error(`[DB] ${this.tableName}.forUser.bulkAdd: ${error.message}`);
   }
 
+  async bulkPut(objs: T[]): Promise<void> {
+    if (objs.length === 0) return;
+    const { error } = await supabase
+      .from(this.tableName)
+      .upsert(
+        objs.map((o) => {
+          const dbObj = toDb(o as unknown as Record<string, unknown>);
+          dbObj['user_id'] = this.userId;
+          return dbObj;
+        }),
+        { onConflict: 'id' },
+      );
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.bulkPut: ${error.message}`);
+  }
+
   async update(id: string, changes: Partial<T>): Promise<void> {
     const snakeChanges = toDb(changes as unknown as Record<string, unknown>);
     const { error } = await supabase
