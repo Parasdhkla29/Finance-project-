@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../core/db';
 import type { Transaction } from '../core/types';
 import { newId, now } from '../core/types';
+import { getCurrentUserId } from '../auth/useAuthStore';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -19,22 +20,20 @@ export const useTransactionStore = create<TransactionState>((set) => ({
 
   load: async () => {
     set({ loading: true });
-    const transactions = await db.transactions
-      .filter((t) => !t.deletedAt)
-      .toArray();
-    // Sort descending by date
-    transactions.sort((a, b) => b.date.localeCompare(a.date));
-    set({ transactions, loading: false });
+    try {
+      const userId = getCurrentUserId();
+      const transactions = await db.transactions.forUser(userId).toArray();
+      transactions.sort((a, b) => b.date.localeCompare(a.date));
+      set({ transactions, loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   add: async (data) => {
-    const txn: Transaction = {
-      id: newId(),
-      createdAt: now(),
-      updatedAt: now(),
-      ...data,
-    };
-    await db.transactions.add(txn);
+    const userId = getCurrentUserId();
+    const txn: Transaction = { id: newId(), createdAt: now(), updatedAt: now(), ...data };
+    await db.transactions.forUser(userId).add(txn);
     set((s) => ({
       transactions: [txn, ...s.transactions].sort((a, b) => b.date.localeCompare(a.date)),
     }));

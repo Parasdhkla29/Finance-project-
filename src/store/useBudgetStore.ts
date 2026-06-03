@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../core/db';
 import type { Budget } from '../core/types';
 import { newId, now } from '../core/types';
+import { getCurrentUserId } from '../auth/useAuthStore';
 
 interface BudgetState {
   budgets: Budget[];
@@ -18,18 +19,19 @@ export const useBudgetStore = create<BudgetState>((set) => ({
 
   load: async () => {
     set({ loading: true });
-    const budgets = await db.budgets.filter((b) => !b.deletedAt).toArray();
-    set({ budgets, loading: false });
+    try {
+      const userId = getCurrentUserId();
+      const budgets = await db.budgets.forUser(userId).toArray();
+      set({ budgets, loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   add: async (data) => {
-    const budget: Budget = {
-      id: newId(),
-      createdAt: now(),
-      updatedAt: now(),
-      ...data,
-    };
-    await db.budgets.add(budget);
+    const userId = getCurrentUserId();
+    const budget: Budget = { id: newId(), createdAt: now(), updatedAt: now(), ...data };
+    await db.budgets.forUser(userId).add(budget);
     set((s) => ({ budgets: [...s.budgets, budget] }));
     return budget;
   },
@@ -37,9 +39,7 @@ export const useBudgetStore = create<BudgetState>((set) => ({
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
     await db.budgets.update(id, updated);
-    set((s) => ({
-      budgets: s.budgets.map((b) => (b.id === id ? { ...b, ...updated } : b)),
-    }));
+    set((s) => ({ budgets: s.budgets.map((b) => (b.id === id ? { ...b, ...updated } : b)) }));
   },
 
   remove: async (id) => {

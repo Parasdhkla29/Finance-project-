@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
 import AppShell from './components/layout/AppShell';
 import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
@@ -10,18 +11,36 @@ import BudgetsPage from './pages/BudgetsPage';
 import InsightsPage from './pages/InsightsPage';
 import GoalsPage from './pages/GoalsPage';
 import SettingsPage from './pages/SettingsPage';
+
+import LoginPage from './pages/LoginPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+import AuthGuard from './auth/AuthGuard';
+import AdminGuard from './auth/AdminGuard';
+import { useAuthStore } from './auth/useAuthStore';
+
+import AdminLoginPage from './admin/pages/AdminLoginPage';
+import AdminDashboardPage from './admin/pages/AdminDashboardPage';
+import AdminUsersPage from './admin/pages/AdminUsersPage';
+import AdminUserDetailPage from './admin/pages/AdminUserDetailPage';
+import AdminActivityPage from './admin/pages/AdminActivityPage';
+import AdminReportsPage from './admin/pages/AdminReportsPage';
+
 import { seedDefaultAccount } from './store/useAccountStore';
 import { processRecurringRules } from './core/recurring';
 import { applyTheme } from './store/useUIStore';
 
+// ── App initialisation ────────────────────────────────────────────────────────
+
 function useAppInit() {
+  const initSession = useAuthStore((s) => s.initSession);
+  const user = useAuthStore((s) => s.user);
+
+  // Apply theme and restore session on first render
   useEffect(() => {
-    seedDefaultAccount().catch(console.error);
-    processRecurringRules().catch(console.error);
-    const settings = localStorage.getItem('pl_settings');
-    if (settings) {
+    const raw = localStorage.getItem('pl_settings');
+    if (raw) {
       try {
-        const parsed = JSON.parse(settings) as { theme: string };
+        const parsed = JSON.parse(raw) as { theme: string };
         applyTheme(parsed.theme as 'dark' | 'light' | 'system');
       } catch {
         applyTheme('dark');
@@ -29,14 +48,26 @@ function useAppInit() {
     } else {
       applyTheme('dark');
     }
+    void initSession();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // After a regular user logs in, seed their default account and generate recurring transactions
+  useEffect(() => {
+    if (user?.role === 'user') {
+      void seedDefaultAccount();
+      void processRecurringRules();
+    }
+  // user?.id changes when a different user logs in; role stays stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 }
 
-export default function App() {
-  useAppInit();
+// ── Protected user shell ──────────────────────────────────────────────────────
 
+function UserApp() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <AuthGuard>
       <AppShell>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -51,6 +82,34 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </AppShell>
+    </AuthGuard>
+  );
+}
+
+// ── Root ──────────────────────────────────────────────────────────────────────
+
+export default function App() {
+  useAppInit();
+
+  return (
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <Routes>
+        {/* ── Public ───────────────────────────────────────────────────── */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
+
+        {/* ── Admin portal ─────────────────────────────────────────────── */}
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboardPage /></AdminGuard>} />
+        <Route path="/admin/users" element={<AdminGuard><AdminUsersPage /></AdminGuard>} />
+        <Route path="/admin/users/:userId" element={<AdminGuard><AdminUserDetailPage /></AdminGuard>} />
+        <Route path="/admin/activity" element={<AdminGuard><AdminActivityPage /></AdminGuard>} />
+        <Route path="/admin/reports" element={<AdminGuard><AdminReportsPage /></AdminGuard>} />
+
+        {/* ── Authenticated user app (catch-all) ───────────────────────── */}
+        <Route path="/*" element={<UserApp />} />
+      </Routes>
     </BrowserRouter>
   );
 }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../core/db';
 import type { Loan, LoanPayment } from '../core/types';
 import { newId, now } from '../core/types';
+import { getCurrentUserId } from '../auth/useAuthStore';
 
 interface LoanState {
   loans: Loan[];
@@ -21,20 +22,20 @@ export const useLoanStore = create<LoanState>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
-    const loans = await db.loans.filter((l) => !l.deletedAt).toArray();
-    loans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    set({ loans, loading: false });
+    try {
+      const userId = getCurrentUserId();
+      const loans = await db.loans.forUser(userId).toArray();
+      loans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      set({ loans, loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   add: async (data) => {
-    const loan: Loan = {
-      id: newId(),
-      createdAt: now(),
-      updatedAt: now(),
-      payments: [],
-      ...data,
-    };
-    await db.loans.add(loan);
+    const userId = getCurrentUserId();
+    const loan: Loan = { id: newId(), createdAt: now(), updatedAt: now(), payments: [], ...data };
+    await db.loans.forUser(userId).add(loan);
     set((s) => ({ loans: [loan, ...s.loans] }));
     return loan;
   },
@@ -42,9 +43,7 @@ export const useLoanStore = create<LoanState>((set, get) => ({
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
     await db.loans.update(id, updated);
-    set((s) => ({
-      loans: s.loans.map((l) => (l.id === id ? { ...l, ...updated } : l)),
-    }));
+    set((s) => ({ loans: s.loans.map((l) => (l.id === id ? { ...l, ...updated } : l)) }));
   },
 
   remove: async (id) => {
@@ -56,97 +55,38 @@ export const useLoanStore = create<LoanState>((set, get) => ({
     const { loans } = get();
     const loan = loans.find((l) => l.id === loanId);
     if (!loan) return;
-
     const payment: LoanPayment = { id: newId(), ...paymentData };
     const newRemaining = Math.max(0, loan.remainingMinorUnits - payment.amount);
-    const newStatus =
-      newRemaining === 0
-        ? 'settled'
-        : newRemaining < loan.principalMinorUnits
-          ? 'partially_paid'
-          : 'active';
-
-    const updatedLoan: Partial<Loan> = {
-      payments: [...loan.payments, payment],
-      remainingMinorUnits: newRemaining,
-      status: newStatus,
-      updatedAt: now(),
-    };
-
+    const newStatus = newRemaining === 0 ? 'settled' : newRemaining < loan.principalMinorUnits ? 'partially_paid' : 'active';
+    const updatedLoan: Partial<Loan> = { payments: [...loan.payments, payment], remainingMinorUnits: newRemaining, status: newStatus, updatedAt: now() };
     await db.loans.update(loanId, updatedLoan);
-    set((s) => ({
-      loans: s.loans.map((l) =>
-        l.id === loanId ? { ...l, ...updatedLoan } : l,
-      ),
-    }));
+    set((s) => ({ loans: s.loans.map((l) => (l.id === loanId ? { ...l, ...updatedLoan } : l)) }));
   },
 
   updatePayment: async (loanId, paymentId, data) => {
     const { loans } = get();
     const loan = loans.find((l) => l.id === loanId);
     if (!loan) return;
-
     const oldPayment = loan.payments.find((p) => p.id === paymentId);
     if (!oldPayment) return;
-
-    // Adjust remaining: reverse old amount, apply new amount
     const delta = data.amount - oldPayment.amount;
     const newRemaining = Math.max(0, Math.min(loan.principalMinorUnits, loan.remainingMinorUnits - delta));
-    const newStatus: Loan['status'] =
-      newRemaining === 0
-        ? 'settled'
-        : newRemaining < loan.principalMinorUnits
-          ? 'partially_paid'
-          : 'active';
-
-    const updatedPayments = loan.payments.map((p) =>
-      p.id === paymentId ? { ...p, ...data } : p,
-    );
-
-    const updatedLoan: Partial<Loan> = {
-      payments: updatedPayments,
-      remainingMinorUnits: newRemaining,
-      status: newStatus,
-      updatedAt: now(),
-    };
-
+    const newStatus: Loan['status'] = newRemaining === 0 ? 'settled' : newRemaining < loan.principalMinorUnits ? 'partially_paid' : 'active';
+    const updatedLoan: Partial<Loan> = { payments: loan.payments.map((p) => (p.id === paymentId ? { ...p, ...data } : p)), remainingMinorUnits: newRemaining, status: newStatus, updatedAt: now() };
     await db.loans.update(loanId, updatedLoan);
-    set((s) => ({
-      loans: s.loans.map((l) =>
-        l.id === loanId ? { ...l, ...updatedLoan } : l,
-      ),
-    }));
+    set((s) => ({ loans: s.loans.map((l) => (l.id === loanId ? { ...l, ...updatedLoan } : l)) }));
   },
 
   removePayment: async (loanId, paymentId) => {
     const { loans } = get();
     const loan = loans.find((l) => l.id === loanId);
     if (!loan) return;
-
     const payment = loan.payments.find((p) => p.id === paymentId);
     if (!payment) return;
-
     const newRemaining = Math.min(loan.principalMinorUnits, loan.remainingMinorUnits + payment.amount);
-    const newPayments = loan.payments.filter((p) => p.id !== paymentId);
-    const newStatus: Loan['status'] =
-      newRemaining === 0
-        ? 'settled'
-        : newRemaining < loan.principalMinorUnits
-          ? 'partially_paid'
-          : 'active';
-
-    const updatedLoan: Partial<Loan> = {
-      payments: newPayments,
-      remainingMinorUnits: newRemaining,
-      status: newStatus,
-      updatedAt: now(),
-    };
-
+    const newStatus: Loan['status'] = newRemaining === 0 ? 'settled' : newRemaining < loan.principalMinorUnits ? 'partially_paid' : 'active';
+    const updatedLoan: Partial<Loan> = { payments: loan.payments.filter((p) => p.id !== paymentId), remainingMinorUnits: newRemaining, status: newStatus, updatedAt: now() };
     await db.loans.update(loanId, updatedLoan);
-    set((s) => ({
-      loans: s.loans.map((l) =>
-        l.id === loanId ? { ...l, ...updatedLoan } : l,
-      ),
-    }));
+    set((s) => ({ loans: s.loans.map((l) => (l.id === loanId ? { ...l, ...updatedLoan } : l)) }));
   },
 }));

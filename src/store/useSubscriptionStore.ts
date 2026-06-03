@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../core/db';
 import type { Subscription } from '../core/types';
 import { newId, now } from '../core/types';
+import { getCurrentUserId } from '../auth/useAuthStore';
 
 interface SubscriptionState {
   subscriptions: Subscription[];
@@ -18,19 +19,20 @@ export const useSubscriptionStore = create<SubscriptionState>((set) => ({
 
   load: async () => {
     set({ loading: true });
-    const subscriptions = await db.subscriptions.filter((s) => !s.deletedAt).toArray();
-    subscriptions.sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate));
-    set({ subscriptions, loading: false });
+    try {
+      const userId = getCurrentUserId();
+      const subscriptions = await db.subscriptions.forUser(userId).toArray();
+      subscriptions.sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate));
+      set({ subscriptions, loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   add: async (data) => {
-    const sub: Subscription = {
-      id: newId(),
-      createdAt: now(),
-      updatedAt: now(),
-      ...data,
-    };
-    await db.subscriptions.add(sub);
+    const userId = getCurrentUserId();
+    const sub: Subscription = { id: newId(), createdAt: now(), updatedAt: now(), ...data };
+    await db.subscriptions.forUser(userId).add(sub);
     set((s) => ({ subscriptions: [...s.subscriptions, sub] }));
     return sub;
   },
@@ -38,11 +40,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set) => ({
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
     await db.subscriptions.update(id, updated);
-    set((s) => ({
-      subscriptions: s.subscriptions.map((sub) =>
-        sub.id === id ? { ...sub, ...updated } : sub,
-      ),
-    }));
+    set((s) => ({ subscriptions: s.subscriptions.map((sub) => (sub.id === id ? { ...sub, ...updated } : sub)) }));
   },
 
   remove: async (id) => {

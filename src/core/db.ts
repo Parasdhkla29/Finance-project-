@@ -80,6 +80,48 @@ class SupabaseTable<T extends { id: string }> {
       .neq('id', '');
     if (error) throw new Error(`[DB] ${this.tableName}.clear: ${error.message}`);
   }
+
+  forUser(userId: string): UserScopedTable<T> {
+    return new UserScopedTable<T>(this.tableName, userId);
+  }
+}
+
+// ── User-scoped table (server-side user_id filter) ──────────────────────────
+
+class UserScopedTable<T extends { id: string }> {
+  private tableName: string;
+  private userId: string;
+  constructor(tableName: string, userId: string) {
+    this.tableName = tableName;
+    this.userId = userId;
+  }
+
+  async toArray(): Promise<T[]> {
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('user_id', this.userId)
+      .is('deleted_at', null);
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.toArray: ${error.message}`);
+    return fromDbArray<T>((data ?? []) as Record<string, unknown>[]);
+  }
+
+  async add(obj: T): Promise<void> {
+    const dbObj = toDb(obj as unknown as Record<string, unknown>);
+    dbObj['user_id'] = this.userId;
+    const { error } = await supabase.from(this.tableName).insert(dbObj);
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.add: ${error.message}`);
+  }
+
+  async count(): Promise<number> {
+    const { count, error } = await supabase
+      .from(this.tableName)
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', this.userId)
+      .is('deleted_at', null);
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.count: ${error.message}`);
+    return count ?? 0;
+  }
 }
 
 // ── Filtered-table proxy (client-side filter, mirrors Dexie behaviour) ──────

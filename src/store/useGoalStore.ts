@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '../core/db';
 import type { FinancialGoal } from '../core/types';
 import { newId, now } from '../core/types';
+import { getCurrentUserId } from '../auth/useAuthStore';
 
 interface GoalState {
   goals: FinancialGoal[];
@@ -18,18 +19,19 @@ export const useGoalStore = create<GoalState>((set) => ({
 
   load: async () => {
     set({ loading: true });
-    const goals = await db.goals.filter((g) => !g.deletedAt).toArray();
-    set({ goals, loading: false });
+    try {
+      const userId = getCurrentUserId();
+      const goals = await db.goals.forUser(userId).toArray();
+      set({ goals, loading: false });
+    } catch {
+      set({ loading: false });
+    }
   },
 
   add: async (data) => {
-    const goal: FinancialGoal = {
-      id: newId(),
-      createdAt: now(),
-      updatedAt: now(),
-      ...data,
-    };
-    await db.goals.add(goal);
+    const userId = getCurrentUserId();
+    const goal: FinancialGoal = { id: newId(), createdAt: now(), updatedAt: now(), ...data };
+    await db.goals.forUser(userId).add(goal);
     set((s) => ({ goals: [...s.goals, goal] }));
     return goal;
   },
@@ -37,9 +39,7 @@ export const useGoalStore = create<GoalState>((set) => ({
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
     await db.goals.update(id, updated);
-    set((s) => ({
-      goals: s.goals.map((g) => (g.id === id ? { ...g, ...updated } : g)),
-    }));
+    set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, ...updated } : g)) }));
   },
 
   remove: async (id) => {
