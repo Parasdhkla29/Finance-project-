@@ -39,12 +39,12 @@ export const useSubscriptionStore = create<SubscriptionState>((set) => ({
 
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
-    await db.subscriptions.update(id, updated);
+    await db.subscriptions.forUser(getCurrentUserId()).update(id, updated);
     set((s) => ({ subscriptions: s.subscriptions.map((sub) => (sub.id === id ? { ...sub, ...updated } : sub)) }));
   },
 
   remove: async (id) => {
-    await db.subscriptions.update(id, { deletedAt: now(), updatedAt: now() });
+    await db.subscriptions.forUser(getCurrentUserId()).update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ subscriptions: s.subscriptions.filter((sub) => sub.id !== id) }));
   },
 }));

@@ -42,12 +42,12 @@ export const useCreditCardStore = create<CreditCardState>((set, get) => ({
 
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
-    await db.creditCards.update(id, updated);
+    await db.creditCards.forUser(getCurrentUserId()).update(id, updated);
     set((s) => ({ cards: s.cards.map((c) => (c.id === id ? { ...c, ...updated } : c)) }));
   },
 
   remove: async (id) => {
-    await db.creditCards.update(id, { deletedAt: now(), updatedAt: now() });
+    await db.creditCards.forUser(getCurrentUserId()).update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ cards: s.cards.filter((c) => c.id !== id) }));
   },
 
@@ -57,7 +57,7 @@ export const useCreditCardStore = create<CreditCardState>((set, get) => ({
     if (!card) return;
     const txn: CreditCardTransaction = { id: newId(), createdAt: now(), updatedAt: now(), ...txnData };
     const updatedCard: Partial<CreditCard> = { transactions: [...card.transactions, txn], balanceMinorUnits: card.balanceMinorUnits + txn.amountMinorUnits, updatedAt: now() };
-    await db.creditCards.update(cardId, updatedCard);
+    await db.creditCards.forUser(getCurrentUserId()).update(cardId, updatedCard);
     set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, ...updatedCard } : c)) }));
   },
 
@@ -68,7 +68,7 @@ export const useCreditCardStore = create<CreditCardState>((set, get) => ({
     const txn = card.transactions.find((t) => t.id === txnId);
     if (!txn) return;
     const updatedCard: Partial<CreditCard> = { transactions: card.transactions.filter((t) => t.id !== txnId), balanceMinorUnits: Math.max(0, card.balanceMinorUnits - txn.amountMinorUnits), updatedAt: now() };
-    await db.creditCards.update(cardId, updatedCard);
+    await db.creditCards.forUser(getCurrentUserId()).update(cardId, updatedCard);
     set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, ...updatedCard } : c)) }));
   },
 
@@ -79,7 +79,7 @@ export const useCreditCardStore = create<CreditCardState>((set, get) => ({
     const newBalance = Math.max(0, card.balanceMinorUnits - amountMinorUnits);
     const newStatus: CreditCard['status'] = newBalance === 0 ? 'active' : card.status === 'overdue' ? 'active' : card.status;
     const updatedCard: Partial<CreditCard> = { balanceMinorUnits: newBalance, status: newStatus, updatedAt: now() };
-    await db.creditCards.update(cardId, updatedCard);
+    await db.creditCards.forUser(getCurrentUserId()).update(cardId, updatedCard);
     set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, ...updatedCard } : c)) }));
   },
 }));

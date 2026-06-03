@@ -42,15 +42,17 @@ export const useAccountStore = create<AccountState>((set) => ({
   },
 
   update: async (id, data) => {
+    const userId = getCurrentUserId();
     const updated = { ...data, updatedAt: now() };
-    await db.accounts.update(id, updated);
+    await db.accounts.forUser(userId).update(id, updated);
     set((s) => ({
       accounts: s.accounts.map((a) => (a.id === id ? { ...a, ...updated } : a)),
     }));
   },
 
   remove: async (id) => {
-    await db.accounts.update(id, { deletedAt: now(), updatedAt: now() });
+    const userId = getCurrentUserId();
+    await db.accounts.forUser(userId).remove(id);
     set((s) => ({ accounts: s.accounts.filter((a) => a.id !== id) }));
   },
 }));

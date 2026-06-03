@@ -134,6 +134,25 @@ class UserScopedTable<T extends { id: string }> {
       }));
     if (error) throw new Error(`[DB] ${this.tableName}.forUser.bulkAdd: ${error.message}`);
   }
+
+  async update(id: string, changes: Partial<T>): Promise<void> {
+    const snakeChanges = toDb(changes as unknown as Record<string, unknown>);
+    const { error } = await supabase
+      .from(this.tableName)
+      .update(snakeChanges)
+      .eq('id', id)
+      .eq('user_id', this.userId);
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.update: ${error.message}`);
+  }
+
+  async remove(id: string): Promise<void> {
+    const { error } = await supabase
+      .from(this.tableName)
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', this.userId);
+    if (error) throw new Error(`[DB] ${this.tableName}.forUser.remove: ${error.message}`);
+  }
 }
 
 // ── Filtered-table proxy (client-side filter, mirrors Dexie behaviour) ──────

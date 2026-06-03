@@ -38,12 +38,12 @@ export const useGoalStore = create<GoalState>((set) => ({
 
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
-    await db.goals.update(id, updated);
+    await db.goals.forUser(getCurrentUserId()).update(id, updated);
     set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, ...updated } : g)) }));
   },
 
   remove: async (id) => {
-    await db.goals.update(id, { deletedAt: now(), updatedAt: now() });
+    await db.goals.forUser(getCurrentUserId()).update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ goals: s.goals.filter((g) => g.id !== id) }));
   },
 }));

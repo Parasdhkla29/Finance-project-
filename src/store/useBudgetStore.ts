@@ -38,12 +38,12 @@ export const useBudgetStore = create<BudgetState>((set) => ({
 
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
-    await db.budgets.update(id, updated);
+    await db.budgets.forUser(getCurrentUserId()).update(id, updated);
     set((s) => ({ budgets: s.budgets.map((b) => (b.id === id ? { ...b, ...updated } : b)) }));
   },
 
   remove: async (id) => {
-    await db.budgets.update(id, { deletedAt: now(), updatedAt: now() });
+    await db.budgets.forUser(getCurrentUserId()).update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ budgets: s.budgets.filter((b) => b.id !== id) }));
   },
 }));

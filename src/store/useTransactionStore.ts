@@ -41,8 +41,9 @@ export const useTransactionStore = create<TransactionState>((set) => ({
   },
 
   update: async (id, data) => {
+    const userId = getCurrentUserId();
     const updated = { ...data, updatedAt: now() };
-    await db.transactions.update(id, updated);
+    await db.transactions.forUser(userId).update(id, updated);
     set((s) => ({
       transactions: s.transactions
         .map((t) => (t.id === id ? { ...t, ...updated } : t))
@@ -51,11 +52,13 @@ export const useTransactionStore = create<TransactionState>((set) => ({
   },
 
   remove: async (id) => {
-    await db.transactions.update(id, { deletedAt: now(), updatedAt: now() });
+    const userId = getCurrentUserId();
+    await db.transactions.forUser(userId).remove(id);
     set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) }));
   },
 
   markCompleted: async (id) => {
+    const userId = getCurrentUserId();
     const today = new Date().toISOString().split('T')[0];
     const completedAt = now();
     const changes = {
@@ -66,7 +69,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       hasFixedScheduleDate: undefined,
       updatedAt: now(),
     };
-    await db.transactions.update(id, changes);
+    await db.transactions.forUser(userId).update(id, changes);
     set((s) => ({
       transactions: s.transactions
         .map((t) => (t.id === id ? { ...t, ...changes } : t))

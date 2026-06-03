@@ -42,12 +42,12 @@ export const useLoanStore = create<LoanState>((set, get) => ({
 
   update: async (id, data) => {
     const updated = { ...data, updatedAt: now() };
-    await db.loans.update(id, updated);
+    await db.loans.forUser(getCurrentUserId()).update(id, updated);
     set((s) => ({ loans: s.loans.map((l) => (l.id === id ? { ...l, ...updated } : l)) }));
   },
 
   remove: async (id) => {
-    await db.loans.update(id, { deletedAt: now(), updatedAt: now() });
+    await db.loans.forUser(getCurrentUserId()).update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ loans: s.loans.filter((l) => l.id !== id) }));
   },
 
@@ -59,7 +59,7 @@ export const useLoanStore = create<LoanState>((set, get) => ({
     const newRemaining = Math.max(0, loan.remainingMinorUnits - payment.amount);
     const newStatus = newRemaining === 0 ? 'settled' : newRemaining < loan.principalMinorUnits ? 'partially_paid' : 'active';
     const updatedLoan: Partial<Loan> = { payments: [...loan.payments, payment], remainingMinorUnits: newRemaining, status: newStatus, updatedAt: now() };
-    await db.loans.update(loanId, updatedLoan);
+    await db.loans.forUser(getCurrentUserId()).update(loanId, updatedLoan);
     set((s) => ({ loans: s.loans.map((l) => (l.id === loanId ? { ...l, ...updatedLoan } : l)) }));
   },
 
@@ -73,7 +73,7 @@ export const useLoanStore = create<LoanState>((set, get) => ({
     const newRemaining = Math.max(0, Math.min(loan.principalMinorUnits, loan.remainingMinorUnits - delta));
     const newStatus: Loan['status'] = newRemaining === 0 ? 'settled' : newRemaining < loan.principalMinorUnits ? 'partially_paid' : 'active';
     const updatedLoan: Partial<Loan> = { payments: loan.payments.map((p) => (p.id === paymentId ? { ...p, ...data } : p)), remainingMinorUnits: newRemaining, status: newStatus, updatedAt: now() };
-    await db.loans.update(loanId, updatedLoan);
+    await db.loans.forUser(getCurrentUserId()).update(loanId, updatedLoan);
     set((s) => ({ loans: s.loans.map((l) => (l.id === loanId ? { ...l, ...updatedLoan } : l)) }));
   },
 
@@ -86,7 +86,7 @@ export const useLoanStore = create<LoanState>((set, get) => ({
     const newRemaining = Math.min(loan.principalMinorUnits, loan.remainingMinorUnits + payment.amount);
     const newStatus: Loan['status'] = newRemaining === 0 ? 'settled' : newRemaining < loan.principalMinorUnits ? 'partially_paid' : 'active';
     const updatedLoan: Partial<Loan> = { payments: loan.payments.filter((p) => p.id !== paymentId), remainingMinorUnits: newRemaining, status: newStatus, updatedAt: now() };
-    await db.loans.update(loanId, updatedLoan);
+    await db.loans.forUser(getCurrentUserId()).update(loanId, updatedLoan);
     set((s) => ({ loans: s.loans.map((l) => (l.id === loanId ? { ...l, ...updatedLoan } : l)) }));
   },
 }));
