@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -34,8 +34,9 @@ import {
   isWithinInterval,
   isFuture as isDateFuture,
 } from 'date-fns';
-import { db } from '../../core/db';
+import { useTransactionStore } from '../../store/useTransactionStore';
 import { toMajor } from '../../core/types';
+import type { Transaction } from '../../core/types';
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom';
 
@@ -51,13 +52,13 @@ interface ChartPoint {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-async function fetchRange(start: Date, end: Date) {
-  return db.transactions
-    .filter((t) => !t.deletedAt && isWithinInterval(new Date(t.date), { start, end }))
-    .toArray();
+function txnsInRange(transactions: Transaction[], start: Date, end: Date) {
+  return transactions.filter(
+    (t) => !t.deletedAt && isWithinInterval(new Date(t.date), { start, end }),
+  );
 }
 
-function sumBy(txns: Awaited<ReturnType<typeof fetchRange>>, type: 'income' | 'expense') {
+function sumByType(txns: Transaction[], type: 'income' | 'expense') {
   return toMajor(
     txns.filter((t) => t.type === type).reduce((s, t) => s + t.amountMinorUnits, 0),
   );
@@ -92,10 +93,10 @@ function CustomTooltip({ active, payload, label }: {
 // ── main component ─────────────────────────────────────────────────────────────
 
 export default function NetBalanceChart() {
+  const transactions = useTransactionStore((s) => s.transactions);
   const [period, setPeriod] = useState<Period>('daily');
   const [showComparison, setShowComparison] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [data, setData] = useState<ChartPoint[]>([]);
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   // Custom range
   const [customStart, setCustomStart] = useState('');
@@ -111,17 +112,6 @@ export default function NetBalanceChart() {
     autoSelectedRef.current = false;
   }, [period]);
 
-  // After daily data loads: auto-select today (only once per period switch)
-  useEffect(() => {
-    if (period === 'daily' && data.length > 0 && !autoSelectedRef.current) {
-      autoSelectedRef.current = true;
-      const todayLabel = format(new Date(), 'EEE');
-      if (data.some((d) => d.label === todayLabel)) {
-        setSelectedLabel(todayLabel);
-      }
-    }
-  }, [data, period]);
-
   // Close menu on outside click
   useEffect(() => {
     function onOutside(e: MouseEvent) {
@@ -131,203 +121,206 @@ export default function NetBalanceChart() {
     return () => document.removeEventListener('mousedown', onOutside);
   }, []);
 
-  // ── data loading ─────────────────────────────────────────────────────────────
+  // ── chart data computed from in-memory store (reacts instantly to new txns) ──
 
-  useEffect(() => {
-    async function load() {
-      const now = new Date();
-      const points: ChartPoint[] = [];
+  const data = useMemo<ChartPoint[]>(() => {
+    const now = new Date();
+    const points: ChartPoint[] = [];
 
-      if (period === 'daily') {
-        // Current calendar week Mon–Sun (7 bars).
-        // Future days show scheduled income so users can see what's coming.
-        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-        for (let i = 0; i < 7; i++) {
-          const day = addDays(weekStart, i);
-          const txns = await fetchRange(startOfDay(day), endOfDay(day));
-          const futureDay = isDateFuture(endOfDay(day));
+    if (period === 'daily') {
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      for (let i = 0; i < 7; i++) {
+        const day = addDays(weekStart, i);
+        const txns = txnsInRange(transactions, startOfDay(day), endOfDay(day));
+        const futureDay = isDateFuture(endOfDay(day));
 
-          let pastIncome: number | undefined;
-          let pastExpenses: number | undefined;
-          if (showComparison) {
-            const same = subDays(day, 7);
-            const past = await fetchRange(startOfDay(same), endOfDay(same));
-            pastIncome = sumBy(past, 'income');
-            pastExpenses = sumBy(past, 'expense');
-          }
-
-          points.push({
-            label: format(day, 'EEE'),
-            displayDate: format(day, 'EEEE, MMM d'),
-            income: sumBy(txns, 'income'),
-            expenses: sumBy(txns, 'expense'),
-            isFutureDay: futureDay,
-            pastIncome,
-            pastExpenses,
-          });
+        let pastIncome: number | undefined;
+        let pastExpenses: number | undefined;
+        if (showComparison) {
+          const same = subDays(day, 7);
+          const past = txnsInRange(transactions, startOfDay(same), endOfDay(same));
+          pastIncome = sumByType(past, 'income');
+          pastExpenses = sumByType(past, 'expense');
         }
 
-      } else if (period === 'weekly') {
-        for (let i = 7; i >= 0; i--) {
-          const wDate = subWeeks(now, i);
-          const start = startOfWeek(wDate, { weekStartsOn: 1 });
-          const end = endOfWeek(wDate, { weekStartsOn: 1 });
-          const txns = await fetchRange(start, end);
-
-          let pastIncome: number | undefined;
-          let pastExpenses: number | undefined;
-          if (showComparison) {
-            const pStart = startOfWeek(subWeeks(wDate, 8), { weekStartsOn: 1 });
-            const pEnd = endOfWeek(subWeeks(wDate, 8), { weekStartsOn: 1 });
-            const past = await fetchRange(pStart, pEnd);
-            pastIncome = sumBy(past, 'income');
-            pastExpenses = sumBy(past, 'expense');
-          }
-
-          points.push({
-            label: format(start, 'MMM d'),
-            displayDate: `Week of ${format(start, 'MMM d')}`,
-            income: sumBy(txns, 'income'),
-            expenses: sumBy(txns, 'expense'),
-            pastIncome,
-            pastExpenses,
-          });
-        }
-
-      } else if (period === 'monthly') {
-        for (let i = 5; i >= 0; i--) {
-          const mDate = subMonths(now, i);
-          const txns = await fetchRange(startOfMonth(mDate), endOfMonth(mDate));
-
-          let pastIncome: number | undefined;
-          let pastExpenses: number | undefined;
-          if (showComparison) {
-            const pDate = subMonths(mDate, 6);
-            const past = await fetchRange(startOfMonth(pDate), endOfMonth(pDate));
-            pastIncome = sumBy(past, 'income');
-            pastExpenses = sumBy(past, 'expense');
-          }
-
-          points.push({
-            label: format(mDate, 'MMM'),
-            displayDate: format(mDate, 'MMMM yyyy'),
-            income: sumBy(txns, 'income'),
-            expenses: sumBy(txns, 'expense'),
-            pastIncome,
-            pastExpenses,
-          });
-        }
-
-      } else if (period === 'quarterly') {
-        for (let i = 5; i >= 0; i--) {
-          const qDate = subQuarters(now, i);
-          const txns = await fetchRange(startOfQuarter(qDate), endOfQuarter(qDate));
-          const q = Math.floor(qDate.getMonth() / 3) + 1;
-
-          let pastIncome: number | undefined;
-          let pastExpenses: number | undefined;
-          if (showComparison) {
-            const pDate = subQuarters(qDate, 6);
-            const past = await fetchRange(startOfQuarter(pDate), endOfQuarter(pDate));
-            pastIncome = sumBy(past, 'income');
-            pastExpenses = sumBy(past, 'expense');
-          }
-
-          points.push({
-            label: `Q${q} '${format(qDate, 'yy')}`,
-            displayDate: `Q${q} ${format(qDate, 'yyyy')}`,
-            income: sumBy(txns, 'income'),
-            expenses: sumBy(txns, 'expense'),
-            pastIncome,
-            pastExpenses,
-          });
-        }
-
-      } else if (period === 'yearly') {
-        for (let i = 3; i >= 0; i--) {
-          const yDate = subYears(now, i);
-          const txns = await fetchRange(startOfYear(yDate), endOfYear(yDate));
-
-          let pastIncome: number | undefined;
-          let pastExpenses: number | undefined;
-          if (showComparison) {
-            const pDate = subYears(yDate, 4);
-            const past = await fetchRange(startOfYear(pDate), endOfYear(pDate));
-            pastIncome = sumBy(past, 'income');
-            pastExpenses = sumBy(past, 'expense');
-          }
-
-          points.push({
-            label: format(yDate, 'yyyy'),
-            displayDate: format(yDate, 'yyyy'),
-            income: sumBy(txns, 'income'),
-            expenses: sumBy(txns, 'expense'),
-            pastIncome,
-            pastExpenses,
-          });
-        }
-
-      } else if (period === 'custom' && customStart && customEnd) {
-        const rangeStart = parseISO(customStart);
-        const rangeEnd = parseISO(customEnd);
-        if (isBefore(rangeEnd, rangeStart)) { setData([]); return; }
-
-        const dayCount = differenceInDays(rangeEnd, rangeStart) + 1;
-
-        if (dayCount <= 31) {
-          // Daily bars
-          for (let i = 0; i < dayCount; i++) {
-            const day = addDays(rangeStart, i);
-            const txns = await fetchRange(startOfDay(day), endOfDay(day));
-            points.push({
-              label: dayCount <= 7 ? format(day, 'EEE') : format(day, 'MMM d'),
-              displayDate: format(day, 'EEEE, MMM d'),
-              income: sumBy(txns, 'income'),
-              expenses: sumBy(txns, 'expense'),
-              isFutureDay: isDateFuture(endOfDay(day)),
-            });
-          }
-        } else if (dayCount <= 365) {
-          // Weekly bars
-          let current = startOfWeek(rangeStart, { weekStartsOn: 1 });
-          while (!isAfter(current, rangeEnd)) {
-            const weekEnd = endOfWeek(current, { weekStartsOn: 1 });
-            const sliceStart = isBefore(current, rangeStart) ? rangeStart : current;
-            const sliceEnd = isAfter(weekEnd, rangeEnd) ? rangeEnd : weekEnd;
-            const txns = await fetchRange(startOfDay(sliceStart), endOfDay(sliceEnd));
-            points.push({
-              label: format(sliceStart, 'MMM d'),
-              displayDate: `Week of ${format(sliceStart, 'MMM d')}`,
-              income: sumBy(txns, 'income'),
-              expenses: sumBy(txns, 'expense'),
-            });
-            current = addDays(weekEnd, 1);
-          }
-        } else {
-          // Monthly bars
-          let current = startOfMonth(rangeStart);
-          while (!isAfter(current, rangeEnd)) {
-            const monthEnd = endOfMonth(current);
-            const sliceStart = isBefore(current, rangeStart) ? rangeStart : current;
-            const sliceEnd = isAfter(monthEnd, rangeEnd) ? rangeEnd : monthEnd;
-            const txns = await fetchRange(startOfDay(sliceStart), endOfDay(sliceEnd));
-            points.push({
-              label: format(current, 'MMM yy'),
-              displayDate: format(current, 'MMMM yyyy'),
-              income: sumBy(txns, 'income'),
-              expenses: sumBy(txns, 'expense'),
-            });
-            current = addDays(monthEnd, 1);
-          }
-        }
+        points.push({
+          label: format(day, 'EEE'),
+          displayDate: format(day, 'EEEE, MMM d'),
+          income: sumByType(txns, 'income'),
+          expenses: sumByType(txns, 'expense'),
+          isFutureDay: futureDay,
+          pastIncome,
+          pastExpenses,
+        });
       }
 
-      // Reverse so most-recent period appears on the LEFT (daily is already Mon→Sun so skip)
-      if (period !== 'daily') points.reverse();
-      setData(points);
+    } else if (period === 'weekly') {
+      for (let i = 7; i >= 0; i--) {
+        const wDate = subWeeks(now, i);
+        const start = startOfWeek(wDate, { weekStartsOn: 1 });
+        const end = endOfWeek(wDate, { weekStartsOn: 1 });
+        const txns = txnsInRange(transactions, start, end);
+
+        let pastIncome: number | undefined;
+        let pastExpenses: number | undefined;
+        if (showComparison) {
+          const pStart = startOfWeek(subWeeks(wDate, 8), { weekStartsOn: 1 });
+          const pEnd = endOfWeek(subWeeks(wDate, 8), { weekStartsOn: 1 });
+          const past = txnsInRange(transactions, pStart, pEnd);
+          pastIncome = sumByType(past, 'income');
+          pastExpenses = sumByType(past, 'expense');
+        }
+
+        points.push({
+          label: format(start, 'MMM d'),
+          displayDate: `Week of ${format(start, 'MMM d')}`,
+          income: sumByType(txns, 'income'),
+          expenses: sumByType(txns, 'expense'),
+          pastIncome,
+          pastExpenses,
+        });
+      }
+
+    } else if (period === 'monthly') {
+      for (let i = 5; i >= 0; i--) {
+        const mDate = subMonths(now, i);
+        const txns = txnsInRange(transactions, startOfMonth(mDate), endOfMonth(mDate));
+
+        let pastIncome: number | undefined;
+        let pastExpenses: number | undefined;
+        if (showComparison) {
+          const pDate = subMonths(mDate, 6);
+          const past = txnsInRange(transactions, startOfMonth(pDate), endOfMonth(pDate));
+          pastIncome = sumByType(past, 'income');
+          pastExpenses = sumByType(past, 'expense');
+        }
+
+        points.push({
+          label: format(mDate, 'MMM'),
+          displayDate: format(mDate, 'MMMM yyyy'),
+          income: sumByType(txns, 'income'),
+          expenses: sumByType(txns, 'expense'),
+          pastIncome,
+          pastExpenses,
+        });
+      }
+
+    } else if (period === 'quarterly') {
+      for (let i = 5; i >= 0; i--) {
+        const qDate = subQuarters(now, i);
+        const txns = txnsInRange(transactions, startOfQuarter(qDate), endOfQuarter(qDate));
+        const q = Math.floor(qDate.getMonth() / 3) + 1;
+
+        let pastIncome: number | undefined;
+        let pastExpenses: number | undefined;
+        if (showComparison) {
+          const pDate = subQuarters(qDate, 6);
+          const past = txnsInRange(transactions, startOfQuarter(pDate), endOfQuarter(pDate));
+          pastIncome = sumByType(past, 'income');
+          pastExpenses = sumByType(past, 'expense');
+        }
+
+        points.push({
+          label: `Q${q} '${format(qDate, 'yy')}`,
+          displayDate: `Q${q} ${format(qDate, 'yyyy')}`,
+          income: sumByType(txns, 'income'),
+          expenses: sumByType(txns, 'expense'),
+          pastIncome,
+          pastExpenses,
+        });
+      }
+
+    } else if (period === 'yearly') {
+      for (let i = 3; i >= 0; i--) {
+        const yDate = subYears(now, i);
+        const txns = txnsInRange(transactions, startOfYear(yDate), endOfYear(yDate));
+
+        let pastIncome: number | undefined;
+        let pastExpenses: number | undefined;
+        if (showComparison) {
+          const pDate = subYears(yDate, 4);
+          const past = txnsInRange(transactions, startOfYear(pDate), endOfYear(pDate));
+          pastIncome = sumByType(past, 'income');
+          pastExpenses = sumByType(past, 'expense');
+        }
+
+        points.push({
+          label: format(yDate, 'yyyy'),
+          displayDate: format(yDate, 'yyyy'),
+          income: sumByType(txns, 'income'),
+          expenses: sumByType(txns, 'expense'),
+          pastIncome,
+          pastExpenses,
+        });
+      }
+
+    } else if (period === 'custom' && customStart && customEnd) {
+      const rangeStart = parseISO(customStart);
+      const rangeEnd = parseISO(customEnd);
+      if (isBefore(rangeEnd, rangeStart)) return [];
+
+      const dayCount = differenceInDays(rangeEnd, rangeStart) + 1;
+
+      if (dayCount <= 31) {
+        for (let i = 0; i < dayCount; i++) {
+          const day = addDays(rangeStart, i);
+          const txns = txnsInRange(transactions, startOfDay(day), endOfDay(day));
+          points.push({
+            label: dayCount <= 7 ? format(day, 'EEE') : format(day, 'MMM d'),
+            displayDate: format(day, 'EEEE, MMM d'),
+            income: sumByType(txns, 'income'),
+            expenses: sumByType(txns, 'expense'),
+            isFutureDay: isDateFuture(endOfDay(day)),
+          });
+        }
+      } else if (dayCount <= 365) {
+        let current = startOfWeek(rangeStart, { weekStartsOn: 1 });
+        while (!isAfter(current, rangeEnd)) {
+          const weekEnd = endOfWeek(current, { weekStartsOn: 1 });
+          const sliceStart = isBefore(current, rangeStart) ? rangeStart : current;
+          const sliceEnd = isAfter(weekEnd, rangeEnd) ? rangeEnd : weekEnd;
+          const txns = txnsInRange(transactions, startOfDay(sliceStart), endOfDay(sliceEnd));
+          points.push({
+            label: format(sliceStart, 'MMM d'),
+            displayDate: `Week of ${format(sliceStart, 'MMM d')}`,
+            income: sumByType(txns, 'income'),
+            expenses: sumByType(txns, 'expense'),
+          });
+          current = addDays(weekEnd, 1);
+        }
+      } else {
+        let current = startOfMonth(rangeStart);
+        while (!isAfter(current, rangeEnd)) {
+          const monthEnd = endOfMonth(current);
+          const sliceStart = isBefore(current, rangeStart) ? rangeStart : current;
+          const sliceEnd = isAfter(monthEnd, rangeEnd) ? rangeEnd : monthEnd;
+          const txns = txnsInRange(transactions, startOfDay(sliceStart), endOfDay(sliceEnd));
+          points.push({
+            label: format(current, 'MMM yy'),
+            displayDate: format(current, 'MMMM yyyy'),
+            income: sumByType(txns, 'income'),
+            expenses: sumByType(txns, 'expense'),
+          });
+          current = addDays(monthEnd, 1);
+        }
+      }
     }
-    load();
-  }, [period, showComparison, customStart, customEnd]);
+
+    // daily is already Mon→Sun, all other periods reverse so most-recent is on the RIGHT
+    if (period !== 'daily') points.reverse();
+    return points;
+  }, [transactions, period, showComparison, customStart, customEnd]);
+
+  // Auto-select today bar after daily data computes
+  useEffect(() => {
+    if (period === 'daily' && data.length > 0 && !autoSelectedRef.current) {
+      autoSelectedRef.current = true;
+      const todayLabel = format(new Date(), 'EEE');
+      if (data.some((d) => d.label === todayLabel)) {
+        setSelectedLabel(todayLabel);
+      }
+    }
+  }, [data, period]);
 
   // ── derived display values ────────────────────────────────────────────────────
 

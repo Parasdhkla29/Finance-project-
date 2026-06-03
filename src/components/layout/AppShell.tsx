@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useUIStore, applyTheme } from '../../store/useUIStore';
-import Modal from '../ui/Modal';
-import TransactionForm from '../transactions/TransactionForm';
+import TransactionDrawer from '../transactions/TransactionDrawer';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -204,10 +203,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
         )}
       </button>
 
-      {/* Transaction modal */}
-      <Modal open={showTxnModal} onClose={() => setShowTxnModal(false)} title="Add Transaction">
-        <TransactionForm onDone={() => setShowTxnModal(false)} />
-      </Modal>
+      {/* Transaction drawer */}
+      <TransactionDrawer
+        open={showTxnModal}
+        onClose={() => setShowTxnModal(false)}
+        onSaved={() => setShowTxnModal(false)}
+      />
     </div>
   );
 }

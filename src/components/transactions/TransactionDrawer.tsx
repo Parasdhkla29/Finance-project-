@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAccountStore } from '../../store/useAccountStore';
 import { useTransactionStore } from '../../store/useTransactionStore';
 import { useUIStore } from '../../store/useUIStore';
-import { suggestCategory } from '../../core/categorizer';
 import { toMinor } from '../../core/types';
 import type { Transaction } from '../../core/types';
 import { createPortal } from 'react-dom';
@@ -19,7 +18,6 @@ interface FormData {
   time: string;
   accountId: string;
   toAccountId: string;
-  merchant: string;
   category: string;
   paymentMethod: string;
   status: 'completed' | 'scheduled';
@@ -37,89 +35,6 @@ interface TransactionDrawerProps {
   onSaved?: () => void;
 }
 
-// ── Merchant combobox ─────────────────────────────────────────────────────
-
-function MerchantCombobox({
-  value,
-  onChange,
-  type,
-  allTransactions,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  type: 'income' | 'expense' | 'transfer';
-  allTransactions: Transaction[];
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  const label = type === 'income' ? 'Source / Payer' : type === 'transfer' ? 'Reference' : 'Merchant / Payee';
-  const placeholder = type === 'income' ? 'e.g. Employer, Client, HMRC' : 'e.g. Tesco, Amazon, Shell';
-
-  const suggestions = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const t of allTransactions) {
-      if (t.merchant && !t.deletedAt) {
-        const key = t.merchant.trim().toLowerCase();
-        counts[key] = (counts[key] ?? 0) + 1;
-      }
-    }
-    return Object.entries(counts)
-      .filter(([, c]) => c >= 1)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([k]) => {
-        const found = allTransactions.find((t) => t.merchant?.toLowerCase() === k);
-        return found?.merchant ?? k;
-      });
-  }, [allTransactions]);
-
-  const filtered = value
-    ? suggestions.filter((s) => s.toLowerCase().includes(value.toLowerCase()))
-    : suggestions.slice(0, 6);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-        {label}
-      </label>
-      <input
-        type="text"
-        value={value}
-        autoComplete="off"
-        placeholder={placeholder}
-        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-      />
-      {open && filtered.length > 0 && (
-        <div className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-          {filtered.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { onChange(m); setOpen(false); }}
-              className="w-full text-left px-4 py-2.5 text-sm text-slate-800 hover:bg-slate-50 flex items-center gap-2"
-            >
-              <span className="text-slate-300 text-xs">↵</span>
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Main Drawer ────────────────────────────────────────────────────────────
 
 export default function TransactionDrawer({
@@ -130,7 +45,7 @@ export default function TransactionDrawer({
   onSaved,
 }: TransactionDrawerProps) {
   const { accounts } = useAccountStore();
-  const { add, update, transactions } = useTransactionStore();
+  const { add, update } = useTransactionStore();
   const { defaultAccountId } = useUIStore();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
@@ -161,7 +76,6 @@ export default function TransactionDrawer({
       time: timeStr,
       accountId: initial?.accountId ?? defaultAcc,
       toAccountId: initial?.toAccountId ?? '',
-      merchant: initial?.merchant ?? '',
       category: initial?.category ?? '',
       paymentMethod: initial?.paymentMethod ?? '',
       status: initScheduled ? 'scheduled' : 'completed',
@@ -175,16 +89,8 @@ export default function TransactionDrawer({
   const type = watch('type');
   const status = watch('status');
   const hasFixedDate = watch('hasFixedDate');
-  const merchant = watch('merchant');
   const category = watch('category');
   const paymentMethod = watch('paymentMethod');
-
-  // Auto-suggest category
-  useEffect(() => {
-    if (!merchant || category || initial?.category) return;
-    const s = suggestCategory(merchant);
-    if (s) setValue('category', s.category);
-  }, [merchant, category, setValue, initial]);
 
   // Reset form when drawer opens/closes
   useEffect(() => {
@@ -196,7 +102,6 @@ export default function TransactionDrawer({
         time: timeStr,
         accountId: initial?.accountId ?? defaultAcc,
         toAccountId: initial?.toAccountId ?? '',
-        merchant: initial?.merchant ?? '',
         category: initial?.category ?? '',
         paymentMethod: initial?.paymentMethod ?? '',
         status: initScheduled ? 'scheduled' : 'completed',
@@ -233,7 +138,6 @@ export default function TransactionDrawer({
       amountMinorUnits: toMinor(parseFloat(data.amount) || 0),
       currency: account?.currency ?? 'GBP',
       category: data.category || 'Uncategorized',
-      merchant: data.merchant || undefined,
       notes: data.notes || undefined,
       date: resolvedDate,
       paymentMethod: (data.paymentMethod as Transaction['paymentMethod']) || undefined,
@@ -503,14 +407,20 @@ export default function TransactionDrawer({
               )}
             </div>
 
-            {/* ── Merchant / Source ─────────────────────────────────── */}
+            {/* ── Notes / Remark ────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <MerchantCombobox
-                value={merchant}
-                onChange={(v) => setValue('merchant', v)}
-                type={type}
-                allTransactions={transactions}
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Notes / Remark <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Describe this transaction..."
+                {...register('notes', { required: 'Notes is required' })}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
+              {errors.notes && (
+                <p className="text-xs text-red-500 mt-1">{errors.notes.message}</p>
+              )}
             </div>
 
             {/* ── Category ──────────────────────────────────────────── */}
@@ -573,18 +483,8 @@ export default function TransactionDrawer({
               />
             </div>
 
-            {/* ── Notes ─────────────────────────────────────────────── */}
-            <div className="px-5 pb-6">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Notes / Remark
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Any additional notes..."
-                {...register('notes')}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-            </div>
+            {/* spacer */}
+            <div className="pb-2" />
           </div>
 
           {/* ── Sticky save button ─────────────────────────────────── */}
