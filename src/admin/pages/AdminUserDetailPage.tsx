@@ -55,24 +55,123 @@ function fmtPaymentMethod(raw: string | null | undefined): string {
 
 function exportTransactionsPdf(transactions: Record<string, unknown>[], username: string) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  // Portrait A4 usable width ≈ 515 pt (595 − 40*2 margins)
+  const ML = 40;
+  const PW = 515;
 
+  // ── Compute summary metrics ───────────────────────────────────────────────
+  let totalIncome = 0;
+  let totalExpense = 0;
+  let totalTransfer = 0;
+  let completedCount = 0;
+  let scheduledCount = 0;
+  let recurringCount = 0;
+  const categorySums: Record<string, number> = {};
+  const currencies = new Set<string>();
+
+  transactions.forEach((t) => {
+    const row = t as any;
+    const minor: number = row.amount_minor_units ?? 0;
+    const type = (row.type ?? '').toLowerCase();
+    const status = (row.status ?? '').toLowerCase();
+    if (row.currency) currencies.add(row.currency);
+    if (type === 'income') totalIncome += minor;
+    else if (type === 'expense') totalExpense += minor;
+    else if (type === 'transfer') totalTransfer += minor;
+    if (status === 'completed') completedCount++;
+    else if (status === 'scheduled') scheduledCount++;
+    if (row.is_recurring) recurringCount++;
+    if (type === 'expense' && row.category) {
+      categorySums[row.category] = (categorySums[row.category] ?? 0) + minor;
+    }
+  });
+
+  const net = totalIncome - totalExpense;
+  const currency = currencies.size === 1 ? [...currencies][0] : 'GBP';
+  const topCategories = Object.entries(categorySums).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  // ── Blue header bar ───────────────────────────────────────────────────────
+  doc.setFillColor(37, 99, 235);
+  doc.rect(0, 0, 595, 52, 'F');
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Transactions — ${username}`, 40, 38);
-
+  doc.setTextColor(255, 255, 255);
+  doc.text(`Transaction Report — ${username}`, ML, 33);
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(130, 130, 130);
-  doc.text(`Exported ${new Date().toLocaleString()}  ·  ${transactions.length} record(s)`, 40, 54);
+  doc.setTextColor(180, 210, 255);
+  doc.text(`Generated ${new Date().toLocaleString()}  ·  ${transactions.length} transaction(s)`, ML, 46);
   doc.setTextColor(0, 0, 0);
+
+  // ── Summary cards (4 across) ──────────────────────────────────────────────
+  const cardY = 66;
+  const cardH = 46;
+  const gap = 8;
+  const cardW = (PW - gap * 3) / 4;
+
+  type RGB = [number, number, number];
+  const cards: { label: string; value: string; bg: RGB; fg: RGB }[] = [
+    { label: 'Total Income',   value: fmtAmount(totalIncome, currency),   bg: [220, 252, 231], fg: [21, 128, 61] },
+    { label: 'Total Expenses', value: fmtAmount(totalExpense, currency),  bg: [254, 226, 226], fg: [185, 28, 28] },
+    { label: 'Net Balance',    value: fmtAmount(net, currency),           bg: net >= 0 ? [219, 234, 254] : [254, 226, 226], fg: net >= 0 ? [29, 78, 216] : [185, 28, 28] },
+    { label: 'Transfers',      value: fmtAmount(totalTransfer, currency), bg: [243, 244, 246], fg: [75, 85, 99] },
+  ];
+
+  cards.forEach((card, i) => {
+    const x = ML + i * (cardW + gap);
+    doc.setFillColor(...card.bg);
+    doc.roundedRect(x, cardY, cardW, cardH, 4, 4, 'F');
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(card.label, x + 8, cardY + 13);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...card.fg);
+    doc.text(card.value, x + 8, cardY + 32);
+  });
+
+  // ── Stats + top categories row ────────────────────────────────────────────
+  const row2Y = cardY + cardH + gap;
+  const halfW = (PW - gap) / 2;
+
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(ML, row2Y, halfW, 38, 4, 4, 'F');
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(55, 65, 81);
+  doc.text('Transaction Breakdown', ML + 8, row2Y + 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(75, 85, 99);
+  doc.text(
+    `Completed: ${completedCount}    Scheduled: ${scheduledCount}    Recurring: ${recurringCount}`,
+    ML + 8, row2Y + 26,
+  );
+
+  const catX = ML + halfW + gap;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(catX, row2Y, halfW, 38, 4, 4, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(55, 65, 81);
+  doc.text('Top Expense Categories', catX + 8, row2Y + 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(75, 85, 99);
+  doc.text(
+    topCategories.length
+      ? topCategories.map(([cat, amt]) => `${cat}: ${fmtAmount(amt, currency)}`).join('   ·   ')
+      : '—',
+    catX + 8, row2Y + 26,
+  );
+
+  // ── Transactions table ────────────────────────────────────────────────────
+  doc.setTextColor(0, 0, 0);
+  const tableStartY = row2Y + 38 + 10;
 
   const columns = [
     'Date', 'Type', 'Amount', 'Status', 'Category',
     'Merchant', 'Notes', 'Tags', 'Pmt Method', 'Timing', 'Recur',
   ];
 
-  const rows = transactions.map((t) => {
+  const tableRows = transactions.map((t) => {
     const row = t as any;
     const tags: string[] = Array.isArray(row.tags)
       ? row.tags
@@ -98,24 +197,24 @@ function exportTransactionsPdf(transactions: Record<string, unknown>[], username
 
   autoTable(doc, {
     head: [columns],
-    body: rows,
-    startY: 68,
-    margin: { left: 40, right: 40 },
+    body: tableRows,
+    startY: tableStartY,
+    margin: { left: ML, right: ML },
     styles: { fontSize: 6, cellPadding: 3, overflow: 'linebreak' },
     headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 45 },  // Date
-      1: { cellWidth: 38 },  // Type
-      2: { cellWidth: 52 },  // Amount
-      3: { cellWidth: 45 },  // Status
-      4: { cellWidth: 50 },  // Category
-      5: { cellWidth: 50 },  // Merchant
-      6: { cellWidth: 68 },  // Notes
-      7: { cellWidth: 55 },  // Tags
-      8: { cellWidth: 52 },  // Pmt Method
-      9: { cellWidth: 32 },  // Timing
-      10: { cellWidth: 28 }, // Recurring
+      0: { cellWidth: 45 },
+      1: { cellWidth: 38 },
+      2: { cellWidth: 52 },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 50 },
+      5: { cellWidth: 50 },
+      6: { cellWidth: 68 },
+      7: { cellWidth: 55 },
+      8: { cellWidth: 52 },
+      9: { cellWidth: 32 },
+      10: { cellWidth: 28 },
     },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 1) {
@@ -123,6 +222,11 @@ function exportTransactionsPdf(transactions: Record<string, unknown>[], username
         if (v === 'income') data.cell.styles.textColor = [21, 128, 61];
         else if (v === 'expense') data.cell.styles.textColor = [185, 28, 28];
         else if (v === 'transfer') data.cell.styles.textColor = [29, 78, 216];
+      }
+      if (data.section === 'body' && data.column.index === 2) {
+        const v = String(data.cell.raw ?? '');
+        if (v.startsWith('-')) data.cell.styles.textColor = [185, 28, 28];
+        else if (v !== '—') data.cell.styles.textColor = [21, 128, 61];
       }
     },
   });
