@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import BottomSheet from '../ui/BottomSheet';
 import type { Account } from '../../core/types';
-import { PRESET_CATEGORIES, CATEGORY_EMOJIS } from './CategorySheet';
+import { PRESET_CATEGORIES, CATEGORY_EMOJIS, loadCustomCategories } from './CategorySheet';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -264,12 +264,34 @@ export function CategoryFilterSheet({ open, onClose, value, onChange }: Category
   const [draft, setDraft] = useState<string[]>(value);
   const [search, setSearch] = useState('');
 
-  const categories = search
-    ? PRESET_CATEGORIES.filter((c) => c.toLowerCase().includes(search.toLowerCase()))
-    : PRESET_CATEGORIES;
+  const customCatNames = loadCustomCategories().map((c) => c.name);
+  // preset list minus anything the user already named custom (avoid duplicates)
+  const presetOnly = PRESET_CATEGORIES.filter((c) => !customCatNames.includes(c));
+
+  const q = search.toLowerCase();
+  const filteredCustom = customCatNames.filter((c) => !q || c.toLowerCase().includes(q));
+  const filteredPreset = presetOnly.filter((c) => !q || c.toLowerCase().includes(q));
 
   const toggle = (c: string) =>
     setDraft((d) => (d.includes(c) ? d.filter((x) => x !== c) : [...d, c]));
+
+  function CatButton({ cat }: { cat: string }) {
+    return (
+      <button
+        key={cat}
+        onClick={() => toggle(cat)}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+          draft.includes(cat) ? 'bg-blue-50 border-blue-200' : 'border-transparent hover:bg-slate-50'
+        }`}
+      >
+        <span className="text-lg w-6 text-center shrink-0">{CATEGORY_EMOJIS[cat] ?? '📌'}</span>
+        <span className={`flex-1 text-left ${draft.includes(cat) ? 'text-blue-700' : 'text-slate-700'}`}>
+          {cat}
+        </span>
+        {draft.includes(cat) && <span className="text-blue-600"><CheckIcon /></span>}
+      </button>
+    );
+  }
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Category">
@@ -282,24 +304,32 @@ export function CategoryFilterSheet({ open, onClose, value, onChange }: Category
           className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-transparent"
         />
       </div>
-      <div className="px-4 pt-2 pb-2 max-h-80 overflow-y-auto space-y-1">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => toggle(cat)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
-              draft.includes(cat)
-                ? 'bg-blue-50 border-blue-200'
-                : 'border-transparent hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg w-6 text-center shrink-0">{CATEGORY_EMOJIS[cat] ?? '📌'}</span>
-            <span className={`flex-1 text-left ${draft.includes(cat) ? 'text-blue-700' : 'text-slate-700'}`}>
-              {cat}
-            </span>
-            {draft.includes(cat) && <span className="text-blue-600"><CheckIcon /></span>}
-          </button>
-        ))}
+      <div className="px-4 pt-2 pb-2 max-h-80 overflow-y-auto">
+        {/* My Categories */}
+        {filteredCustom.length > 0 && (
+          <>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider pt-2 pb-1">
+              My Categories
+            </p>
+            <div className="space-y-1 mb-2">
+              {filteredCustom.map((cat) => <CatButton key={cat} cat={cat} />)}
+            </div>
+          </>
+        )}
+        {/* Suggested */}
+        {filteredPreset.length > 0 && (
+          <>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider pt-2 pb-1">
+              {filteredCustom.length > 0 ? 'Suggested' : (search ? 'Results' : 'All Categories')}
+            </p>
+            <div className="space-y-1">
+              {filteredPreset.map((cat) => <CatButton key={cat} cat={cat} />)}
+            </div>
+          </>
+        )}
+        {filteredCustom.length === 0 && filteredPreset.length === 0 && (
+          <p className="text-sm text-slate-400 text-center py-8">No categories found</p>
+        )}
       </div>
       <SheetFooter
         onClear={() => { setDraft([]); onChange([]); onClose(); setSearch(''); }}

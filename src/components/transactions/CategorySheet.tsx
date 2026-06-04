@@ -155,6 +155,41 @@ function AddCategorySheet({ open, onClose, onAdded }: AddCategorySheetProps) {
   );
 }
 
+// ── Shared row button ──────────────────────────────────────────────────────
+
+function CategoryRow({
+  cat,
+  selected,
+  onSelect,
+}: {
+  cat: string;
+  selected: string;
+  onSelect: (c: string) => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(cat)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+        selected === cat ? 'bg-blue-50 border-blue-200' : 'border-transparent hover:bg-slate-50'
+      }`}
+    >
+      <span className="text-lg w-7 text-center shrink-0">
+        {CATEGORY_EMOJIS[cat] ?? '📌'}
+      </span>
+      <span className={`text-sm font-medium flex-1 ${selected === cat ? 'text-blue-700' : 'text-slate-700'}`}>
+        {cat}
+      </span>
+      {selected === cat && (
+        <span className="text-blue-600 shrink-0">
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ── CategorySheet ──────────────────────────────────────────────────────────
 
 interface CategorySheetProps {
@@ -175,11 +210,17 @@ export default function CategorySheet({ open, onClose, selected, onSelect }: Cat
     return merged;
   }, [customCats]);
 
+  const customNames = useMemo(() => customCats.map((c) => c.name), [customCats]);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return allCategories;
     const q = search.toLowerCase();
     return allCategories.filter((c) => c.toLowerCase().includes(q));
   }, [allCategories, search]);
+
+  // When searching, split results into custom-first + preset
+  const filteredCustom = useMemo(() => filtered.filter((c) => customNames.includes(c)), [filtered, customNames]);
+  const filteredPreset = useMemo(() => filtered.filter((c) => !customNames.includes(c)), [filtered, customNames]);
 
   function handleSelect(cat: string) {
     onSelect(cat);
@@ -287,51 +328,42 @@ export default function CategorySheet({ open, onClose, selected, onSelect }: Cat
             </div>
           )}
 
-          {/* All categories list */}
-          <div className="px-4 pt-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              {search ? `Results (${filtered.length})` : 'All Categories'}
-            </p>
-            {filtered.length === 0 ? (
+          {/* Category list — custom first, then suggested */}
+          {filtered.length === 0 ? (
+            <div className="px-4 pt-3">
               <p className="text-sm text-slate-400 text-center py-6">No categories found</p>
-            ) : (
-              <div className="space-y-1">
-                {filtered.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => handleSelect(cat)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
-                      selected === cat
-                        ? 'bg-blue-50 border-blue-200'
-                        : 'border-transparent hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="text-lg w-7 text-center shrink-0">
-                      {CATEGORY_EMOJIS[cat] ?? '📌'}
-                    </span>
-                    <span
-                      className={`text-sm font-medium flex-1 ${
-                        selected === cat ? 'text-blue-700' : 'text-slate-700'
-                      }`}
-                    >
-                      {cat}
-                    </span>
-                    {selected === cat && (
-                      <span className="text-blue-600 shrink-0">
-                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* My Categories */}
+              {filteredCustom.length > 0 && (
+                <div className="px-4 pt-3">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    My Categories
+                  </p>
+                  <div className="space-y-1">
+                    {filteredCustom.map((cat) => (
+                      <CategoryRow key={cat} cat={cat} selected={selected} onSelect={handleSelect} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Suggested */}
+              {filteredPreset.length > 0 && (
+                <div className="px-4 pt-3">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    {search ? `Results (${filteredPreset.length})` : 'Suggested'}
+                  </p>
+                  <div className="space-y-1">
+                    {filteredPreset.map((cat) => (
+                      <CategoryRow key={cat} cat={cat} selected={selected} onSelect={handleSelect} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           {/* Add new button */}
           <div className="px-4 pt-3">
