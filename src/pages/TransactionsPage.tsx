@@ -206,7 +206,7 @@ function TxnCard({
 
               {/* Chips row */}
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                {txn.category && (
+                {txn.category && txn.category.toLowerCase() !== txn.type.toLowerCase() && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
                     <span>{CATEGORY_EMOJIS[txn.category] ?? '📌'}</span>
                     {txn.category}
@@ -344,8 +344,8 @@ function ScheduledCard({
                 {txn.notes || txn.merchant || txn.category}
               </p>
 
-              {/* Category chip */}
-              {txn.category && (
+              {/* Category chip — hidden when category duplicates the type label */}
+              {txn.category && txn.category.toLowerCase() !== txn.type.toLowerCase() && (
                 <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-white text-slate-600 rounded-full text-xs font-medium border border-slate-200">
                   <span>{CATEGORY_EMOJIS[txn.category] ?? '📌'}</span>
                   {txn.category}
