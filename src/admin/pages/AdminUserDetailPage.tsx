@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../AdminLayout';
 import { getUserDetail } from '../../admin/lib/adminApi';
 import type { UserDetail } from '../../admin/lib/adminApi';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // ── CSV export helper ─────────────────────────────────────────────────────
 
@@ -30,6 +32,102 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function fmtDate(raw: string | null | undefined): string {
+  if (!raw) return '—';
+  return new Date(raw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function fmtAmount(minorUnits: number | null | undefined, currency = 'GBP'): string {
+  const amount = (minorUnits ?? 0) / 100;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'GBP',
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+function fmtPaymentMethod(raw: string | null | undefined): string {
+  if (!raw) return '—';
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function exportTransactionsPdf(transactions: Record<string, unknown>[], username: string) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  // Portrait A4 usable width ≈ 515 pt (595 − 40*2 margins)
+
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Transactions — ${username}`, 40, 38);
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(130, 130, 130);
+  doc.text(`Exported ${new Date().toLocaleString()}  ·  ${transactions.length} record(s)`, 40, 54);
+  doc.setTextColor(0, 0, 0);
+
+  const columns = [
+    'Date', 'Type', 'Amount', 'Status', 'Category',
+    'Merchant', 'Notes', 'Tags', 'Pmt Method', 'Timing', 'Recur',
+  ];
+
+  const rows = transactions.map((t) => {
+    const row = t as any;
+    const tags: string[] = Array.isArray(row.tags)
+      ? row.tags
+      : typeof row.tags === 'string' && row.tags
+        ? row.tags.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [];
+    const type = (row.type ?? '').toLowerCase();
+    const amountStr = `${type === 'expense' ? '-' : ''}${fmtAmount(row.amount_minor_units, row.currency)}`;
+    return [
+      fmtDate(row.transaction_date ?? row.date),
+      row.type ?? '—',
+      amountStr,
+      row.status ?? '—',
+      row.category ?? '—',
+      row.merchant ?? '—',
+      row.notes ?? '—',
+      tags.join(', ') || '—',
+      fmtPaymentMethod(row.payment_method),
+      row.payment_timing ?? '—',
+      row.is_recurring ? 'Yes' : 'No',
+    ];
+  });
+
+  autoTable(doc, {
+    head: [columns],
+    body: rows,
+    startY: 68,
+    margin: { left: 40, right: 40 },
+    styles: { fontSize: 6, cellPadding: 3, overflow: 'linebreak' },
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 45 },  // Date
+      1: { cellWidth: 38 },  // Type
+      2: { cellWidth: 52 },  // Amount
+      3: { cellWidth: 45 },  // Status
+      4: { cellWidth: 50 },  // Category
+      5: { cellWidth: 50 },  // Merchant
+      6: { cellWidth: 68 },  // Notes
+      7: { cellWidth: 55 },  // Tags
+      8: { cellWidth: 52 },  // Pmt Method
+      9: { cellWidth: 32 },  // Timing
+      10: { cellWidth: 28 }, // Recurring
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const v = String(data.cell.raw ?? '').toLowerCase();
+        if (v === 'income') data.cell.styles.textColor = [21, 128, 61];
+        else if (v === 'expense') data.cell.styles.textColor = [185, 28, 28];
+        else if (v === 'transfer') data.cell.styles.textColor = [29, 78, 216];
+      }
+    },
+  });
+
+  doc.save(`transactions_${username}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 function exportTransactionsCsv(transactions: Record<string, unknown>[], username: string) {
@@ -348,6 +446,18 @@ function TransactionsTab({
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TxTypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<TxStatusFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    transactions.forEach((t) => {
+      const row = t as any;
+      if (row.category) cats.add(row.category);
+    });
+    return ['all', ...Array.from(cats).sort()];
+  }, [transactions]);
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
@@ -362,9 +472,14 @@ function TransactionsTab({
         typeFilter === 'all' || (row.type ?? '').toLowerCase() === typeFilter;
       const matchStatus =
         statusFilter === 'all' || (row.status ?? '').toLowerCase() === statusFilter;
-      return matchSearch && matchType && matchStatus;
+      const matchCategory =
+        categoryFilter === 'all' || (row.category ?? '') === categoryFilter;
+      const rowDate = row.transaction_date ?? row.date ?? '';
+      const matchFrom = !dateFrom || rowDate >= dateFrom;
+      const matchTo = !dateTo || rowDate <= dateTo;
+      return matchSearch && matchType && matchStatus && matchCategory && matchFrom && matchTo;
     });
-  }, [transactions, search, typeFilter, statusFilter]);
+  }, [transactions, search, typeFilter, statusFilter, categoryFilter, dateFrom, dateTo]);
 
   const TYPE_FILTERS: { id: TxTypeFilter; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -379,9 +494,22 @@ function TransactionsTab({
     { id: 'scheduled', label: 'Scheduled' },
   ];
 
+  function clearFilters() {
+    setSearch('');
+    setTypeFilter('all');
+    setStatusFilter('all');
+    setCategoryFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  }
+
+  const isFiltered =
+    search || typeFilter !== 'all' || statusFilter !== 'all' ||
+    categoryFilter !== 'all' || dateFrom || dateTo;
+
   return (
     <div className="space-y-4">
-      {/* Controls */}
+      {/* Top controls row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
           type="search"
@@ -390,34 +518,95 @@ function TransactionsTab({
           onChange={(e) => setSearch(e.target.value)}
           className="w-full sm:w-72 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button
-          type="button"
-          onClick={() => exportTransactionsCsv(filtered, username)}
-          className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => exportTransactionsCsv(filtered, username)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => exportTransactionsPdf(filtered, username)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Export PDF
+          </button>
+        </div>
       </div>
 
-      {/* Type filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-gray-500">Type:</span>
-        {TYPE_FILTERS.map((f) => (
-          <PillButton key={f.id} active={typeFilter === f.id} onClick={() => setTypeFilter(f.id)}>
-            {f.label}
-          </PillButton>
-        ))}
-      </div>
+      {/* Filter row */}
+      <div className="flex flex-wrap gap-3 items-end bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+        {/* Type pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-gray-500 mr-0.5">Type:</span>
+          {TYPE_FILTERS.map((f) => (
+            <PillButton key={f.id} active={typeFilter === f.id} onClick={() => setTypeFilter(f.id)}>
+              {f.label}
+            </PillButton>
+          ))}
+        </div>
 
-      {/* Status filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-gray-500">Status:</span>
-        {STATUS_FILTERS.map((f) => (
-          <PillButton key={f.id} active={statusFilter === f.id} onClick={() => setStatusFilter(f.id)}>
-            {f.label}
-          </PillButton>
-        ))}
+        {/* Status pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-gray-500 mr-0.5">Status:</span>
+          {STATUS_FILTERS.map((f) => (
+            <PillButton key={f.id} active={statusFilter === f.id} onClick={() => setStatusFilter(f.id)}>
+              {f.label}
+            </PillButton>
+          ))}
+        </div>
+
+        {/* Category dropdown */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-gray-500">Category:</span>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            {categories.map((c) => (
+              <option key={c} value={c}>{c === 'all' ? 'All' : c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date range */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-gray-500">From:</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-lg border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          />
+          <span className="text-xs font-medium text-gray-500">To:</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-lg border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          />
+        </div>
+
+        {/* Clear */}
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        )}
+
+        {/* Result count */}
+        <span className="ml-auto text-xs text-gray-400">
+          {filtered.length} of {transactions.length} transactions
+        </span>
       </div>
 
       {/* Table */}
