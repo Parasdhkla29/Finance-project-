@@ -33,24 +33,34 @@ export type PaymentMethod =
   | 'wallet'
   | 'other';
 export type PaymentTiming = 'instant' | 'future';
-export type TransactionStatus = 'completed' | 'scheduled';
+export type TransactionStatus = 'completed' | 'scheduled' | 'partially_received';
+
+export interface PartialPayment {
+  id: string;
+  amountMinorUnits: number;
+  notes?: string;
+  recordedAt: string;
+}
 
 export interface Transaction extends BaseEntity {
   accountId: string;
-  toAccountId?: string; // for transfer destination
+  toAccountId?: string;
   type: TransactionType;
-  amountMinorUnits: number; // pence/cents — avoids float errors
+  amountMinorUnits: number;
   currency: Currency;
   category: string;
   subcategory?: string;
   merchant?: string;
   notes?: string;
-  date: string; // ISO 8601 — for scheduled without fixed date, equals today at save time
+  date: string;
   paymentMethod?: PaymentMethod;
-  paymentTiming?: PaymentTiming; // kept for backward compat; prefer status
-  status?: TransactionStatus; // 'completed' | 'scheduled'
-  hasFixedScheduleDate?: boolean; // false = no specific due date chosen
-  completedAt?: string; // ISO timestamp when marked completed
+  paymentTiming?: PaymentTiming;
+  status?: TransactionStatus;
+  hasFixedScheduleDate?: boolean;
+  completedAt?: string;
+  receivedAt?: string;
+  receivedAmountMinorUnits?: number;
+  partialPayments?: PartialPayment[];
   tags: string[];
   isRecurring: boolean;
   recurringId?: string;

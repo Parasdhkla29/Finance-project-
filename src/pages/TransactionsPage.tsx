@@ -6,6 +6,7 @@ import type { Transaction } from '../core/types';
 import { formatCurrency, isScheduled as isTxnScheduled } from '../core/types';
 import TransactionDrawer from '../components/transactions/TransactionDrawer';
 import CategorySheet from '../components/transactions/CategorySheet';
+import BottomSheet from '../components/ui/BottomSheet';
 import {
   DateFilterSheet,
   TypeFilterSheet,
@@ -278,6 +279,138 @@ function TxnCard({
   );
 }
 
+// ── Partial payment bottom sheet ──────────────────────────────────────────
+
+function PartialPaymentSheet({
+  open,
+  onClose,
+  txn,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  txn: Transaction;
+  onSave: (amount: number, notes: string) => Promise<void>;
+}) {
+  const [amountStr, setAmountStr] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const received = txn.receivedAmountMinorUnits ?? 0;
+  const remaining = txn.amountMinorUnits - received;
+
+  async function handleSave() {
+    const major = parseFloat(amountStr);
+    if (!amountStr || isNaN(major) || major <= 0) {
+      setError('Please enter a valid amount.');
+      return;
+    }
+    const minor = Math.round(major * 100);
+    if (minor > remaining) {
+      setError(`Amount cannot exceed the remaining ${formatCurrency(remaining, txn.currency)}.`);
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await onSave(minor, notes);
+      setAmountStr('');
+      setNotes('');
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="Partial Payment" zIndex={60}>
+      <div className="px-4 pt-2 pb-6 space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: 'Total', value: formatCurrency(txn.amountMinorUnits, txn.currency), color: 'text-slate-700' },
+            { label: 'Received', value: formatCurrency(received, txn.currency), color: 'text-emerald-600' },
+            { label: 'Remaining', value: formatCurrency(remaining, txn.currency), color: 'text-amber-600' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-slate-50 rounded-xl px-3 py-2 text-center">
+              <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+              <p className={`text-sm font-bold ${color}`}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Amount input */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+            Amount Received <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-semibold text-sm">
+              {txn.currency === 'GBP' ? '£' : txn.currency === 'USD' ? '$' : '€'}
+            </span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="0.01"
+              value={amountStr}
+              onChange={(e) => { setAmountStr(e.target.value); setError(''); }}
+              placeholder="0.00"
+              className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-medium"
+            />
+          </div>
+          {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+            Notes (optional)
+          </label>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. first instalment"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+          />
+        </div>
+
+        {/* Payment history */}
+        {(txn.partialPayments?.length ?? 0) > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment History</p>
+            <div className="space-y-1.5">
+              {txn.partialPayments!.map((p) => (
+                <div key={p.id} className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-700">
+                      +{formatCurrency(p.amountMinorUnits, txn.currency)}
+                    </p>
+                    {p.notes && <p className="text-xs text-slate-500">{p.notes}</p>}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {new Date(p.recordedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handleSave}
+          disabled={saving || !amountStr}
+          className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-sm font-bold tracking-wide disabled:opacity-40 active:bg-emerald-700 transition-colors"
+        >
+          {saving ? 'Saving…' : 'Save Partial Payment'}
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
 // ── Scheduled card ────────────────────────────────────────────────────────
 
 function ScheduledCard({
@@ -292,13 +425,15 @@ function ScheduledCard({
   onDelete: () => void;
 }) {
   const [showActions, setShowActions] = useState(false);
+  const [showPartialSheet, setShowPartialSheet] = useState(false);
+  const { markFullReceived, addPartialPayment } = useTransactionStore();
 
   const ctaLabel =
-    txn.type === 'income'
-      ? 'MARK RECEIVED TODAY'
-      : txn.type === 'expense'
-        ? 'MARK PAID TODAY'
-        : 'MARK TRANSFERRED TODAY';
+    txn.type === 'expense'
+      ? 'MARK PAID TODAY'
+      : txn.type === 'transfer'
+        ? 'MARK TRANSFERRED TODAY'
+        : 'MARK RECEIVED TODAY';
 
   const ctaColor =
     txn.type === 'income'
@@ -306,6 +441,12 @@ function ScheduledCard({
       : txn.type === 'expense'
         ? 'bg-red-600 text-white'
         : 'bg-blue-600 text-white';
+
+  const isIncome = txn.type === 'income';
+  const isCompleted = txn.status === 'completed';
+  const isPartial = txn.status === 'partially_received';
+  const received = txn.receivedAmountMinorUnits ?? 0;
+  const remaining = txn.amountMinorUnits - received;
 
   const dateText = txn.hasFixedScheduleDate
     ? `Expected ${format(parseISO(txn.date), 'd MMM yyyy')}`
@@ -379,13 +520,71 @@ function ScheduledCard({
             </div>
           </div>
 
-          {/* CTA button — always visible */}
-          <button
-            onClick={(e) => { e.stopPropagation(); onMarkCompleted(); }}
-            className={`w-full mt-3 py-2 rounded-xl text-xs font-bold tracking-wide ${ctaColor} active:opacity-80 transition-opacity`}
-          >
-            {ctaLabel}
-          </button>
+          {/* CTA area */}
+          {isIncome ? (
+            isCompleted ? (
+              /* Fully received state */
+              <div className="mt-3 flex items-center gap-2 bg-emerald-50 rounded-xl px-3 py-2">
+                <span className="text-emerald-600 text-base">✓</span>
+                <div>
+                  <p className="text-xs font-bold text-emerald-700">Received in full</p>
+                  {txn.receivedAt && (
+                    <p className="text-xs text-slate-400">
+                      {new Date(txn.receivedAt).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Progress row for partial state */}
+                {isPartial && (
+                  <div className="mt-3 bg-amber-50 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-amber-700">
+                        {formatCurrency(received, txn.currency)} received of {formatCurrency(txn.amountMinorUnits, txn.currency)}
+                      </p>
+                      <p className="text-xs text-slate-400">{formatCurrency(remaining, txn.currency)} remaining</p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowPartialSheet(true); }}
+                      className="text-xs text-amber-600 font-semibold underline underline-offset-2"
+                    >
+                      History
+                    </button>
+                  </div>
+                )}
+                {/* Two action buttons */}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markFullReceived(txn.id);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold tracking-wide active:opacity-80 transition-opacity"
+                  >
+                    RECEIVED FULL
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowPartialSheet(true); }}
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold tracking-wide active:opacity-80 transition-opacity"
+                  >
+                    PARTIAL RECEIVED
+                  </button>
+                </div>
+              </>
+            )
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onMarkCompleted(); }}
+              className={`w-full mt-3 py-2 rounded-xl text-xs font-bold tracking-wide ${ctaColor} active:opacity-80 transition-opacity`}
+            >
+              {ctaLabel}
+            </button>
+          )}
 
           {/* Edit/Delete on tap */}
           {showActions && (
@@ -412,6 +611,16 @@ function ScheduledCard({
           )}
         </div>
       </div>
+
+      {/* Partial payment sheet — rendered outside the card div so it layers correctly */}
+      {isIncome && (
+        <PartialPaymentSheet
+          open={showPartialSheet}
+          onClose={() => setShowPartialSheet(false)}
+          txn={txn}
+          onSave={(amount, notes) => addPartialPayment(txn.id, amount, notes)}
+        />
+      )}
     </div>
   );
 }

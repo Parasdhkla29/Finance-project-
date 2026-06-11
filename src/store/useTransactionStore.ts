@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { db } from '../core/db';
-import type { Transaction } from '../core/types';
+import type { Transaction, PartialPayment } from '../core/types';
 import { newId, now, isScheduled } from '../core/types';
 import { getCurrentUserId } from '../auth/useAuthStore';
 
@@ -23,9 +23,11 @@ interface TransactionState {
   update: (id: string, data: Partial<Transaction>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   markCompleted: (id: string) => Promise<void>;
+  markFullReceived: (id: string) => Promise<void>;
+  addPartialPayment: (id: string, amountMinorUnits: number, notes?: string) => Promise<void>;
 }
 
-export const useTransactionStore = create<TransactionState>((set) => ({
+export const useTransactionStore = create<TransactionState>((set, get) => ({
   transactions: [],
   loading: false,
 
@@ -77,6 +79,64 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       hasFixedScheduleDate: undefined,
       updatedAt: now(),
     };
+    await db.transactions.forUser(userId).update(id, changes);
+    set((s) => ({
+      transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...changes } : t))),
+    }));
+  },
+
+  markFullReceived: async (id) => {
+    const userId = getCurrentUserId();
+    const txn = get().transactions.find((t) => t.id === id);
+    const receivedAt = now();
+    const today = new Date().toISOString().split('T')[0];
+    const changes: Partial<Transaction> = {
+      status: 'completed',
+      paymentTiming: 'instant',
+      date: today,
+      completedAt: receivedAt,
+      receivedAt,
+      receivedAmountMinorUnits: txn?.amountMinorUnits ?? 0,
+      hasFixedScheduleDate: undefined,
+      updatedAt: now(),
+    };
+    await db.transactions.forUser(userId).update(id, changes);
+    set((s) => ({
+      transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...changes } : t))),
+    }));
+  },
+
+  addPartialPayment: async (id, amountMinorUnits, notes) => {
+    const userId = getCurrentUserId();
+    const txn = get().transactions.find((t) => t.id === id);
+    if (!txn) return;
+
+    const payment: PartialPayment = {
+      id: newId(),
+      amountMinorUnits,
+      notes: notes?.trim() || undefined,
+      recordedAt: now(),
+    };
+
+    const existing = txn.partialPayments ?? [];
+    const newReceived = (txn.receivedAmountMinorUnits ?? 0) + amountMinorUnits;
+    const isFullyReceived = newReceived >= txn.amountMinorUnits;
+    const receivedAt = isFullyReceived ? now() : undefined;
+    const today = new Date().toISOString().split('T')[0];
+
+    const changes: Partial<Transaction> = {
+      partialPayments: [...existing, payment],
+      receivedAmountMinorUnits: newReceived,
+      status: isFullyReceived ? 'completed' : 'partially_received',
+      updatedAt: now(),
+      ...(isFullyReceived && {
+        paymentTiming: 'instant' as const,
+        date: today,
+        completedAt: receivedAt,
+        receivedAt,
+      }),
+    };
+
     await db.transactions.forUser(userId).update(id, changes);
     set((s) => ({
       transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...changes } : t))),
