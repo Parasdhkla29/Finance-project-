@@ -286,11 +286,13 @@ function PartialPaymentSheet({
   onClose,
   txn,
   onSave,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   txn: Transaction;
   onSave: (amount: number, notes: string) => Promise<void>;
+  onSaved?: (msg: string) => void;
 }) {
   const [amountStr, setAmountStr] = useState('');
   const [notes, setNotes] = useState('');
@@ -315,6 +317,9 @@ function PartialPaymentSheet({
     setError('');
     try {
       await onSave(minor, notes);
+      const newReceived = (txn.receivedAmountMinorUnits ?? 0) + minor;
+      const isFull = newReceived >= txn.amountMinorUnits;
+      onSaved?.(isFull ? '✓ Income received in full' : '✓ Partial payment saved');
       setAmountStr('');
       setNotes('');
       onClose();
@@ -418,14 +423,17 @@ function ScheduledCard({
   onMarkCompleted,
   onEdit,
   onDelete,
+  onSuccess,
 }: {
   txn: Transaction;
   onMarkCompleted: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onSuccess?: (msg: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showPartialSheet, setShowPartialSheet] = useState(false);
+  const [markingFull, setMarkingFull] = useState(false);
   const { markFullReceived, addPartialPayment } = useTransactionStore();
 
   const ctaLabel =
@@ -560,13 +568,17 @@ function ScheduledCard({
                 {/* Two action buttons */}
                 <div className="flex gap-2 mt-3">
                   <button
+                    disabled={markingFull}
                     onClick={(e) => {
                       e.stopPropagation();
-                      markFullReceived(txn.id);
+                      setMarkingFull(true);
+                      markFullReceived(txn.id).then(() => {
+                        onSuccess?.('✓ Income received in full');
+                      }).finally(() => setMarkingFull(false));
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold tracking-wide active:opacity-80 transition-opacity"
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold tracking-wide active:opacity-80 transition-opacity disabled:opacity-60"
                   >
-                    RECEIVED FULL
+                    {markingFull ? '…' : 'RECEIVED FULL'}
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowPartialSheet(true); }}
@@ -619,6 +631,7 @@ function ScheduledCard({
           onClose={() => setShowPartialSheet(false)}
           txn={txn}
           onSave={(amount, notes) => addPartialPayment(txn.id, amount, notes)}
+          onSaved={(msg) => onSuccess?.(msg)}
         />
       )}
     </div>
@@ -1044,6 +1057,7 @@ export default function TransactionsPage() {
                       onMarkCompleted={() => handleMarkCompleted(t.id, t.type)}
                       onEdit={() => openDrawer(t.type, t)}
                       onDelete={() => setConfirmDeleteId(t.id)}
+                      onSuccess={showToast}
                     />
                   ) : (
                     <TxnCard
