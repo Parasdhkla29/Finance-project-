@@ -518,20 +518,29 @@ function ScheduledCard({
               </p>
             </div>
 
-            {/* Amount */}
+            {/* Amount — show remaining when partially received */}
             <div className="text-right shrink-0">
-              <p
-                className={`text-base font-bold ${
-                  txn.type === 'income'
-                    ? 'text-emerald-600'
-                    : txn.type === 'expense'
-                      ? 'text-red-600'
-                      : 'text-blue-600'
-                }`}
-              >
-                {txn.type === 'income' ? '+' : '−'}
-                {formatCurrency(txn.amountMinorUnits, txn.currency)}
-              </p>
+              {isPartial ? (
+                <>
+                  <p className="text-base font-bold text-amber-600">
+                    +{formatCurrency(remaining, txn.currency)}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">remaining</p>
+                </>
+              ) : (
+                <p
+                  className={`text-base font-bold ${
+                    txn.type === 'income'
+                      ? 'text-emerald-600'
+                      : txn.type === 'expense'
+                        ? 'text-red-600'
+                        : 'text-blue-600'
+                  }`}
+                >
+                  {txn.type === 'income' ? '+' : '−'}
+                  {formatCurrency(txn.amountMinorUnits, txn.currency)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -555,21 +564,36 @@ function ScheduledCard({
               </div>
             ) : (
               <>
-                {/* Progress row for partial state */}
+                {/* Received amount card for partial state */}
                 {isPartial && (
-                  <div className="mt-3 bg-amber-50 rounded-xl px-3 py-2 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-amber-700">
-                        {formatCurrency(received, txn.currency)} received of {formatCurrency(txn.amountMinorUnits, txn.currency)}
-                      </p>
-                      <p className="text-xs text-slate-400">{formatCurrency(remaining, txn.currency)} remaining</p>
+                  <div className="mt-3 bg-emerald-50 border border-emerald-100 rounded-xl px-3 pt-2.5 pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs text-slate-400 mb-0.5">Received so far</p>
+                        <p className="text-xl font-bold text-emerald-600">
+                          +{formatCurrency(received, txn.currency)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          of {formatCurrency(txn.amountMinorUnits, txn.currency)} total
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowPartialSheet(true); }}
+                        className="text-xs text-emerald-600 font-semibold bg-emerald-100 px-2.5 py-1 rounded-lg mt-0.5"
+                      >
+                        History
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowPartialSheet(true); }}
-                      className="text-xs text-amber-600 font-semibold underline underline-offset-2"
-                    >
-                      History
-                    </button>
+                    {/* Progress bar */}
+                    <div className="mt-2.5 bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-emerald-500 h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (received / txn.amountMinorUnits) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-amber-600 font-medium mt-1">
+                      {formatCurrency(remaining, txn.currency)} still to receive
+                    </p>
                   </div>
                 )}
                 {/* Two action buttons */}
