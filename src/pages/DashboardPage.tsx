@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, getDaysInMonth, getDate } from 'date-fns';
-import { formatCurrency } from '../core/types';
+import { formatCurrency, isScheduled as isTxnScheduled } from '../core/types';
 import { generateInsights, type Insight } from '../core/insights';
 import { useAccountStore } from '../store/useAccountStore';
 import { useTransactionStore } from '../store/useTransactionStore';
@@ -133,11 +133,14 @@ export default function DashboardPage() {
       (t) => !t.deletedAt && isWithinInterval(new Date(t.date), { start, end }),
     );
 
-    // Only count income that has actually arrived (date ≤ today).
-    // Future-scheduled income is logged but excluded until its date comes.
+    // Only count income actually received — scheduled counts 0, partially_received counts only received portion
     const income = monthTxns
-      .filter((t) => t.type === 'income' && t.date <= todayStr)
-      .reduce((s, t) => s + t.amountMinorUnits, 0);
+      .filter((t) => t.type === 'income')
+      .reduce((s, t) => {
+        if (t.status === 'partially_received') return s + (t.receivedAmountMinorUnits ?? 0);
+        if (isTxnScheduled(t)) return s;
+        return s + t.amountMinorUnits;
+      }, 0);
     const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0);
     setStats({
       income,
@@ -151,7 +154,13 @@ export default function DashboardPage() {
     setAccountStats(
       activeAccs.map((acc) => {
         const accTxns = monthTxns.filter((t) => t.accountId === acc.id);
-        const accIncome = accTxns.filter((t) => t.type === 'income' && t.date <= todayStr).reduce((s, t) => s + t.amountMinorUnits, 0);
+        const accIncome = accTxns
+          .filter((t) => t.type === 'income')
+          .reduce((s, t) => {
+            if (t.status === 'partially_received') return s + (t.receivedAmountMinorUnits ?? 0);
+            if (isTxnScheduled(t)) return s;
+            return s + t.amountMinorUnits;
+          }, 0);
         const accExpenses = accTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0);
         return {
           id: acc.id,

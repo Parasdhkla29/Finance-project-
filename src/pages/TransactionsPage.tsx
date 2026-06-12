@@ -222,9 +222,9 @@ function TxnCard({
                 )}
               </div>
 
-              {/* Date */}
+              {/* Date + time */}
               <p className="text-xs text-slate-400 mt-1">
-                {format(parseISO(txn.date), 'd MMM · HH:mm')}
+                {format(parseISO(txn.date), 'd MMM')} · {format(parseISO(txn.createdAt), 'h:mm a')}
               </p>
 
               {/* Tags */}
@@ -837,10 +837,16 @@ export default function TransactionsPage() {
   const summary = useMemo(() => {
     const completed = filtered.filter((t) => !isTxnScheduled(t));
     const scheduled = filtered.filter((t) => isTxnScheduled(t));
+    // Partially received: received portion goes to income, remainder stays in scheduled
     return {
-      income: completed.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0),
+      income: completed.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0)
+        + scheduled.filter((t) => t.type === 'income' && t.status === 'partially_received')
+            .reduce((s, t) => s + (t.receivedAmountMinorUnits ?? 0), 0),
       expense: completed.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0),
-      scheduledIncome: scheduled.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0),
+      scheduledIncome: scheduled.filter((t) => t.type === 'income').reduce((s, t) => {
+        if (t.status === 'partially_received') return s + (t.amountMinorUnits - (t.receivedAmountMinorUnits ?? 0));
+        return s + t.amountMinorUnits;
+      }, 0),
       scheduledExpense: scheduled.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0),
     };
   }, [filtered]);
