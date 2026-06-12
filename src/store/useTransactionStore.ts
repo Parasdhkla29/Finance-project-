@@ -88,6 +88,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   markFullReceived: async (id) => {
     const userId = getCurrentUserId();
     const txn = get().transactions.find((t) => t.id === id);
+    const original = txn ? { ...txn } : null;
     const receivedAt = now();
     const today = new Date().toISOString().split('T')[0];
     const changes: Partial<Transaction> = {
@@ -100,16 +101,28 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       hasFixedScheduleDate: undefined,
       updatedAt: now(),
     };
-    await db.transactions.forUser(userId).update(id, changes);
+    // Optimistic update first so UI responds immediately
     set((s) => ({
       transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...changes } : t))),
     }));
+    try {
+      await db.transactions.forUser(userId).update(id, changes);
+    } catch (err) {
+      // Revert optimistic update on failure
+      if (original) {
+        set((s) => ({
+          transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? original : t))),
+        }));
+      }
+      throw err;
+    }
   },
 
   addPartialPayment: async (id, amountMinorUnits, notes) => {
     const userId = getCurrentUserId();
     const txn = get().transactions.find((t) => t.id === id);
     if (!txn) return;
+    const original = { ...txn };
 
     const payment: PartialPayment = {
       id: newId(),
@@ -137,9 +150,18 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       }),
     };
 
-    await db.transactions.forUser(userId).update(id, changes);
+    // Optimistic update first so UI responds immediately
     set((s) => ({
       transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? { ...t, ...changes } : t))),
     }));
+    try {
+      await db.transactions.forUser(userId).update(id, changes);
+    } catch (err) {
+      // Revert optimistic update on failure
+      set((s) => ({
+        transactions: sortTransactions(s.transactions.map((t) => (t.id === id ? original : t))),
+      }));
+      throw err;
+    }
   },
 }));

@@ -323,6 +323,13 @@ function PartialPaymentSheet({
       setAmountStr('');
       setNotes('');
       onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Save failed';
+      if (msg.includes('partial_payments') || msg.includes('received_amount') || msg.includes('received_at')) {
+        setError('DB columns missing — run the migration SQL in Supabase (see schema file).');
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -572,9 +579,13 @@ function ScheduledCard({
                     onClick={(e) => {
                       e.stopPropagation();
                       setMarkingFull(true);
-                      markFullReceived(txn.id).then(() => {
-                        onSuccess?.('✓ Income received in full');
-                      }).finally(() => setMarkingFull(false));
+                      markFullReceived(txn.id)
+                        .then(() => onSuccess?.('✓ Income received in full'))
+                        .catch((err: unknown) => {
+                          const msg = err instanceof Error ? err.message : 'Save failed';
+                          onSuccess?.(msg.includes('column') ? '✗ DB migration required — see schema file' : `✗ ${msg}`);
+                        })
+                        .finally(() => setMarkingFull(false));
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold tracking-wide active:opacity-80 transition-opacity disabled:opacity-60"
                   >
