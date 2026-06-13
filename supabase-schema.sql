@@ -175,3 +175,11 @@ CREATE POLICY "anon_all" ON budgets         FOR ALL TO anon USING (true) WITH CH
 CREATE POLICY "anon_all" ON goals           FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all" ON recurring_rules FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all" ON credit_cards    FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- ── Migrations (run if upgrading an existing DB) ───────────────────────────
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS received_at TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS received_amount_minor_units BIGINT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS partial_payments JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS allocation_type TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS linked_goal_id TEXT;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS linked_entity_name TEXT;

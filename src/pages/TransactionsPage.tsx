@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { useTransactionStore } from '../store/useTransactionStore';
 import { useAccountStore } from '../store/useAccountStore';
+import { useGoalStore } from '../store/useGoalStore';
 import type { Transaction } from '../core/types';
 import { formatCurrency, isScheduled as isTxnScheduled } from '../core/types';
 import TransactionDrawer from '../components/transactions/TransactionDrawer';
@@ -171,25 +172,33 @@ function TxnCard({
 }) {
   const [showActions, setShowActions] = useState(false);
 
-  const borderColor =
-    txn.type === 'income'
-      ? 'bg-emerald-500'
-      : txn.type === 'expense'
-        ? 'bg-red-500'
-        : 'bg-blue-500';
+  const isGoalLinked = txn.allocationType === 'goal';
 
-  const amountColor =
-    txn.type === 'income'
-      ? 'text-emerald-600'
-      : txn.type === 'expense'
-        ? 'text-red-600'
-        : 'text-blue-600';
+  const borderColor = isGoalLinked
+    ? 'bg-sky-500'
+    : txn.type === 'income' ? 'bg-emerald-500'
+    : txn.type === 'expense' ? 'bg-red-500'
+    : 'bg-blue-500';
+
+  const cardBg = isGoalLinked
+    ? 'bg-sky-50 border-sky-100'
+    : 'bg-white border-slate-100';
+
+  const amountColor = isGoalLinked
+    ? 'text-sky-700'
+    : txn.type === 'income' ? 'text-emerald-600'
+    : txn.type === 'expense' ? 'text-red-600'
+    : 'text-blue-600';
 
   const amountPrefix = txn.type === 'income' ? '+' : txn.type === 'expense' ? '−' : '';
 
+  const title = isGoalLinked && txn.linkedEntityName
+    ? txn.linkedEntityName
+    : txn.notes || txn.merchant || txn.category;
+
   return (
     <div
-      className="bg-white rounded-xl border border-slate-100 overflow-hidden mb-2 shadow-sm"
+      className={`${cardBg} rounded-xl border overflow-hidden mb-2 shadow-sm`}
       onClick={() => setShowActions((v) => !v)}
     >
       <div className="flex">
@@ -200,16 +209,22 @@ function TxnCard({
         <div className="flex-1 px-3 py-3 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              {/* Title: notes > merchant > category */}
-              <p className="text-sm font-semibold text-slate-900 truncate">
-                {txn.notes || txn.merchant || txn.category}
-              </p>
+              {/* Goal badge row */}
+              {isGoalLinked && (
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full text-xs font-bold">🎯 Goal</span>
+                  <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-full text-xs font-medium">Expense</span>
+                </div>
+              )}
+
+              {/* Title */}
+              <p className="text-sm font-semibold text-slate-900 truncate">{title}</p>
 
               {/* Chips row */}
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                 {txn.category &&
                   txn.category.toLowerCase() !== txn.type.toLowerCase() &&
-                  (txn.notes || txn.merchant) && (
+                  (txn.notes || txn.merchant || isGoalLinked) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
                     <span>{CATEGORY_EMOJIS[txn.category] ?? '📌'}</span>
                     {txn.category}
@@ -222,6 +237,11 @@ function TxnCard({
                 )}
               </div>
 
+              {/* Goal-linked notes */}
+              {isGoalLinked && txn.notes && (
+                <p className="text-xs text-slate-500 mt-1 italic">{txn.notes}</p>
+              )}
+
               {/* Date + time */}
               <p className="text-xs text-slate-400 mt-1">
                 {format(parseISO(txn.date), 'd MMM')} · {format(parseISO(txn.createdAt), 'h:mm a')}
@@ -231,10 +251,7 @@ function TxnCard({
               {txn.tags.length > 0 && (
                 <div className="flex gap-1 mt-1.5 flex-wrap">
                   {txn.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs bg-slate-50 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded"
-                    >
+                    <span key={tag} className="text-xs bg-slate-50 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded">
                       #{tag}
                     </span>
                   ))}
@@ -768,6 +785,7 @@ type ActiveSheet =
 export default function TransactionsPage() {
   const { transactions, load, remove, markCompleted } = useTransactionStore();
   const { accounts, load: loadAccounts } = useAccountStore();
+  const { load: loadGoals } = useGoalStore();
 
   // ── Filter state ───────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -791,6 +809,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     load();
     loadAccounts();
+    loadGoals();
   }, []);
 
   const showToast = useCallback((msg: string) => {
@@ -901,7 +920,13 @@ export default function TransactionsPage() {
   }
 
   async function handleDelete(id: string) {
+    const txn = transactions.find((t) => t.id === id);
     await remove(id);
+    // Reverse goal allocation if the transaction was linked to a goal
+    if (txn?.allocationType === 'goal' && txn.linkedGoalId) {
+      const { deallocateAmount } = useGoalStore.getState();
+      await deallocateAmount(txn.linkedGoalId, txn.amountMinorUnits);
+    }
     setConfirmDeleteId(null);
     showToast('Transaction deleted');
   }
@@ -1154,7 +1179,13 @@ export default function TransactionsPage() {
         onClose={() => { setDrawerOpen(false); setEditingTxn(undefined); }}
         initialType={drawerType}
         initial={editingTxn}
-        onSaved={() => showToast(editingTxn ? '✓ Transaction updated' : '✓ Transaction saved')}
+        onSaved={(goalAchieved) => {
+          if (goalAchieved) {
+            showToast('🎉 Goal achieved! Expense saved and linked.');
+          } else {
+            showToast(editingTxn ? '✓ Transaction updated' : '✓ Expense saved and linked to goal.');
+          }
+        }}
       />
 
       {/* ── Filter sheets ────────────────────────────────────────────── */}

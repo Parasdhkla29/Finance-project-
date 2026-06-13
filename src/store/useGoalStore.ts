@@ -11,9 +11,13 @@ interface GoalState {
   add: (data: Omit<FinancialGoal, 'id' | 'createdAt' | 'updatedAt'>) => Promise<FinancialGoal>;
   update: (id: string, data: Partial<FinancialGoal>) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** Add transaction amount to goal progress. Returns true if goal is now achieved. */
+  allocateAmount: (goalId: string, amountMinorUnits: number) => Promise<boolean>;
+  /** Reverse a transaction allocation (e.g. on delete). */
+  deallocateAmount: (goalId: string, amountMinorUnits: number) => Promise<void>;
 }
 
-export const useGoalStore = create<GoalState>((set) => ({
+export const useGoalStore = create<GoalState>((set, get) => ({
   goals: [],
   loading: false,
 
@@ -45,5 +49,29 @@ export const useGoalStore = create<GoalState>((set) => ({
   remove: async (id) => {
     await db.goals.forUser(getCurrentUserId()).update(id, { deletedAt: now(), updatedAt: now() });
     set((s) => ({ goals: s.goals.filter((g) => g.id !== id) }));
+  },
+
+  allocateAmount: async (goalId, amountMinorUnits) => {
+    const goal = get().goals.find((g) => g.id === goalId);
+    if (!goal) return false;
+    const newCurrent = goal.currentMinorUnits + amountMinorUnits;
+    const isAchieved = newCurrent >= goal.targetMinorUnits;
+    const changes: Partial<FinancialGoal> = { currentMinorUnits: newCurrent, isAchieved, updatedAt: now() };
+    await db.goals.forUser(getCurrentUserId()).update(goalId, changes);
+    set((s) => ({ goals: s.goals.map((g) => g.id === goalId ? { ...g, ...changes } : g) }));
+    return isAchieved;
+  },
+
+  deallocateAmount: async (goalId, amountMinorUnits) => {
+    const goal = get().goals.find((g) => g.id === goalId);
+    if (!goal) return;
+    const newCurrent = Math.max(0, goal.currentMinorUnits - amountMinorUnits);
+    const changes: Partial<FinancialGoal> = {
+      currentMinorUnits: newCurrent,
+      isAchieved: newCurrent >= goal.targetMinorUnits,
+      updatedAt: now(),
+    };
+    await db.goals.forUser(getCurrentUserId()).update(goalId, changes);
+    set((s) => ({ goals: s.goals.map((g) => g.id === goalId ? { ...g, ...changes } : g) }));
   },
 }));

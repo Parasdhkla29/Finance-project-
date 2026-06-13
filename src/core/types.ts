@@ -64,11 +64,14 @@ export interface Transaction extends BaseEntity {
   tags: string[];
   isRecurring: boolean;
   recurringId?: string;
+  allocationType?: 'goal' | 'loan' | 'credit_card' | 'subscription' | 'budget';
+  linkedGoalId?: string;
+  linkedEntityName?: string;
 }
 
 /** True if the transaction is scheduled/pending (not yet completed) */
 export function isScheduled(t: Transaction): boolean {
-  return t.status === 'scheduled' || t.paymentTiming === 'future';
+  return t.status === 'scheduled' || t.status === 'partially_received' || t.paymentTiming === 'future';
 }
 
 // ── Loan ───────────────────────────────────────────────────────────────────

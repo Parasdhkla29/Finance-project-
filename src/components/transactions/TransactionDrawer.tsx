@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAccountStore } from '../../store/useAccountStore';
 import { useTransactionStore } from '../../store/useTransactionStore';
+import { useGoalStore } from '../../store/useGoalStore';
 import { useUIStore } from '../../store/useUIStore';
-import { toMinor } from '../../core/types';
-import type { Transaction } from '../../core/types';
+import { toMinor, formatCurrency } from '../../core/types';
+import type { Transaction, FinancialGoal } from '../../core/types';
 import { createPortal } from 'react-dom';
 import CategorySheet from './CategorySheet';
 import { PAYMENT_MODE_LABELS } from './FilterSheets';
@@ -31,7 +32,64 @@ interface TransactionDrawerProps {
   onClose: () => void;
   initialType?: 'income' | 'expense' | 'transfer';
   initial?: Transaction;
-  onSaved?: () => void;
+  onSaved?: (goalAchieved?: boolean) => void;
+}
+
+// ── Goal allocation preview ────────────────────────────────────────────────
+
+function GoalAllocationPreview({
+  goal,
+  amountMinorUnits,
+}: {
+  goal: FinancialGoal;
+  amountMinorUnits: number;
+}) {
+  const newCurrent = goal.currentMinorUnits + amountMinorUnits;
+  const pctBefore = goal.targetMinorUnits > 0 ? (goal.currentMinorUnits / goal.targetMinorUnits) * 100 : 0;
+  const pctAfter = goal.targetMinorUnits > 0 ? Math.min(100, (newCurrent / goal.targetMinorUnits) * 100) : 0;
+  const remaining = Math.max(0, goal.targetMinorUnits - newCurrent);
+  const willComplete = newCurrent >= goal.targetMinorUnits;
+
+  return (
+    <div className="mt-3 bg-sky-50 border border-sky-100 rounded-xl p-3 space-y-2.5">
+      <div className="grid grid-cols-3 gap-1.5">
+        {[
+          { label: 'Target', value: formatCurrency(goal.targetMinorUnits, goal.currency), color: 'text-slate-700' },
+          { label: 'Already saved', value: formatCurrency(goal.currentMinorUnits, goal.currency), color: 'text-emerald-600' },
+          { label: 'This expense', value: `−${formatCurrency(amountMinorUnits, goal.currency)}`, color: 'text-sky-600' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="bg-white rounded-lg px-2 py-1.5 text-center">
+            <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+            <p className={`text-xs font-bold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <span>{pctBefore.toFixed(0)}% before</span>
+          <span className="font-semibold text-sky-600">{pctAfter.toFixed(0)}% after</span>
+        </div>
+        <div className="bg-sky-100 rounded-full h-2 overflow-hidden">
+          <div
+            className="bg-sky-500 h-full rounded-full transition-all duration-300"
+            style={{ width: `${pctAfter}%` }}
+          />
+        </div>
+      </div>
+
+      {willComplete ? (
+        <p className="text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg px-2.5 py-1.5 text-center">
+          🎉 This will complete the goal!
+        </p>
+      ) : (
+        <p className="text-xs text-slate-500 text-center">
+          {formatCurrency(remaining, goal.currency)} still needed after this
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ── Main Drawer ────────────────────────────────────────────────────────────
@@ -45,10 +103,16 @@ export default function TransactionDrawer({
 }: TransactionDrawerProps) {
   const { accounts } = useAccountStore();
   const { add, update } = useTransactionStore();
+  const { goals, load: loadGoals, allocateAmount } = useGoalStore();
   const { defaultAccountId } = useUIStore();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
 
+  // Allocation state (outside react-hook-form — has richer interactivity)
+  const [allocType, setAllocType] = useState<'none' | 'goal'>('none');
+  const [linkedGoalId, setLinkedGoalId] = useState('');
+
   const activeAccounts = accounts.filter((a) => !a.isArchived && !a.deletedAt);
+  const activeGoals = goals.filter((g) => !g.isAchieved && !g.deletedAt);
   const defaultAcc = defaultAccountId ?? activeAccounts[0]?.id ?? '';
 
   const isEdit = !!initial;
@@ -87,10 +151,15 @@ export default function TransactionDrawer({
   const hasFixedDate = watch('hasFixedDate');
   const category = watch('category');
   const paymentMethod = watch('paymentMethod');
+  const amountStr = watch('amount');
 
-  // Reset form when drawer opens/closes
+  const amountMinorUnits = toMinor(parseFloat(amountStr) || 0);
+  const selectedGoal = activeGoals.find((g) => g.id === linkedGoalId);
+
+  // Reset form and allocation state when drawer opens
   useEffect(() => {
     if (open) {
+      loadGoals();
       reset({
         type: initial?.type ?? initialType,
         amount: initial ? String(initial.amountMinorUnits / 100) : '',
@@ -106,6 +175,14 @@ export default function TransactionDrawer({
         tags: initial?.tags.join(', ') ?? '',
         notes: initial?.notes ?? '',
       });
+      // Pre-fill allocation for edit
+      if (initial?.allocationType === 'goal') {
+        setAllocType('goal');
+        setLinkedGoalId(initial.linkedGoalId ?? '');
+      } else {
+        setAllocType('none');
+        setLinkedGoalId('');
+      }
     }
   }, [open]);
 
@@ -126,6 +203,9 @@ export default function TransactionDrawer({
       resolvedDate = data.date || todayStr;
     }
 
+    const isGoalLinked = !isEdit && type === 'expense' && allocType === 'goal' && !!linkedGoalId;
+    const goal = isGoalLinked ? activeGoals.find((g) => g.id === linkedGoalId) : undefined;
+
     const payload: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> = {
       accountId: data.accountId,
       toAccountId: data.type === 'transfer' && data.toAccountId ? data.toAccountId : undefined,
@@ -139,20 +219,27 @@ export default function TransactionDrawer({
       paymentTiming: isScheduled ? 'future' : 'instant',
       status: data.status,
       hasFixedScheduleDate: isScheduled ? data.hasFixedDate : undefined,
-      tags: data.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: data.tags.split(',').map((t) => t.trim()).filter(Boolean),
       isRecurring: false,
+      // Goal allocation
+      allocationType: isGoalLinked ? 'goal' : (isEdit ? initial?.allocationType : undefined),
+      linkedGoalId: isGoalLinked ? linkedGoalId : (isEdit ? initial?.linkedGoalId : undefined),
+      linkedEntityName: isGoalLinked ? goal?.name : (isEdit ? initial?.linkedEntityName : undefined),
     };
 
     if (isEdit && initial) {
       await update(initial.id, payload);
+      onSaved?.();
     } else {
       await add(payload);
+      // Allocate to goal after transaction is saved
+      let achieved = false;
+      if (isGoalLinked) {
+        achieved = await allocateAmount(linkedGoalId, payload.amountMinorUnits);
+      }
+      onSaved?.(achieved);
     }
 
-    onSaved?.();
     onClose();
   }
 
@@ -198,6 +285,7 @@ export default function TransactionDrawer({
         {/* Scrollable form body */}
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
           <div className="overflow-y-auto overflow-x-hidden flex-1 overscroll-contain">
+
             {/* ── Type pills ────────────────────────────────────────── */}
             <div className="px-5 pt-4 pb-3">
               <div className="flex gap-2 bg-slate-100 rounded-2xl p-1">
@@ -205,14 +293,12 @@ export default function TransactionDrawer({
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setValue('type', t)}
+                    onClick={() => { setValue('type', t); if (t !== 'expense') { setAllocType('none'); setLinkedGoalId(''); } }}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all capitalize ${
                       type === t
-                        ? t === 'income'
-                          ? 'bg-emerald-500 text-white shadow-sm'
-                          : t === 'expense'
-                            ? 'bg-red-500 text-white shadow-sm'
-                            : 'bg-blue-500 text-white shadow-sm'
+                        ? t === 'income' ? 'bg-emerald-500 text-white shadow-sm'
+                          : t === 'expense' ? 'bg-red-500 text-white shadow-sm'
+                          : 'bg-blue-500 text-white shadow-sm'
                         : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
@@ -224,80 +310,33 @@ export default function TransactionDrawer({
 
             {/* ── Amount ────────────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <div
-                className={`rounded-2xl p-4 ${
-                  type === 'income'
-                    ? 'bg-emerald-50'
-                    : type === 'expense'
-                      ? 'bg-red-50'
-                      : 'bg-blue-50'
-                }`}
-              >
+              <div className={`rounded-2xl p-4 ${type === 'income' ? 'bg-emerald-50' : type === 'expense' ? 'bg-red-50' : 'bg-blue-50'}`}>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                   Amount <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`text-2xl font-bold ${
-                      type === 'income'
-                        ? 'text-emerald-600'
-                        : type === 'expense'
-                          ? 'text-red-600'
-                          : 'text-blue-600'
-                    }`}
-                  >
-                    £
-                  </span>
+                  <span className={`text-2xl font-bold ${type === 'income' ? 'text-emerald-600' : type === 'expense' ? 'text-red-600' : 'text-blue-600'}`}>£</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0.01"
                     placeholder="0.00"
-                    {...register('amount', {
-                      required: 'Amount is required',
-                      min: { value: 0.01, message: 'Must be > 0' },
-                    })}
-                    className={`flex-1 bg-transparent text-3xl font-bold placeholder-slate-300 focus:outline-none ${
-                      type === 'income'
-                        ? 'text-emerald-700'
-                        : type === 'expense'
-                          ? 'text-red-700'
-                          : 'text-blue-700'
-                    }`}
+                    {...register('amount', { required: 'Amount is required', min: { value: 0.01, message: 'Must be > 0' } })}
+                    className={`flex-1 bg-transparent text-3xl font-bold placeholder-slate-300 focus:outline-none ${type === 'income' ? 'text-emerald-700' : type === 'expense' ? 'text-red-700' : 'text-blue-700'}`}
                   />
                 </div>
-                {errors.amount && (
-                  <p className="text-xs text-red-500 mt-1">{errors.amount.message}</p>
-                )}
+                {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount.message}</p>}
               </div>
             </div>
 
             {/* ── Status toggle ─────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Status
-              </label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setValue('status', 'completed')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                    status === 'completed'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
+                <button type="button" onClick={() => setValue('status', 'completed')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                   <span>✓</span> Completed
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setValue('status', 'scheduled')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                    status === 'scheduled'
-                      ? 'bg-purple-50 border-purple-200 text-purple-700'
-                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
+                <button type="button" onClick={() => setValue('status', 'scheduled')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${status === 'scheduled' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                   <span>⏳</span> Scheduled
                 </button>
               </div>
@@ -309,11 +348,7 @@ export default function TransactionDrawer({
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  {...register('date', { required: true })}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input type="date" {...register('date', { required: true })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             )}
 
@@ -324,31 +359,15 @@ export default function TransactionDrawer({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-purple-800">Expected Date</p>
-                      <p className="text-xs text-purple-500 mt-0.5">
-                        Leave off if date is not yet known
-                      </p>
+                      <p className="text-xs text-purple-500 mt-0.5">Leave off if date is not yet known</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        {...register('hasFixedDate')}
-                      />
+                      <input type="checkbox" className="sr-only peer" {...register('hasFixedDate')} />
                       <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-purple-500 peer-checked:after:translate-x-full after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-transform" />
                     </label>
                   </div>
-                  {hasFixedDate && (
-                    <input
-                      type="date"
-                      {...register('scheduledDate')}
-                      className="w-full px-3 py-2.5 rounded-xl border border-purple-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                  )}
-                  {!hasFixedDate && (
-                    <p className="text-xs font-medium text-purple-600 bg-purple-100 px-3 py-2 rounded-lg">
-                      📅 No fixed date — will show as &quot;No fixed date&quot; in the list
-                    </p>
-                  )}
+                  {hasFixedDate && <input type="date" {...register('scheduledDate')} className="w-full px-3 py-2.5 rounded-xl border border-purple-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400" />}
+                  {!hasFixedDate && <p className="text-xs font-medium text-purple-600 bg-purple-100 px-3 py-2 rounded-lg">📅 No fixed date — will show as &quot;No fixed date&quot; in the list</p>}
                 </div>
               </div>
             )}
@@ -359,15 +378,8 @@ export default function TransactionDrawer({
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   {type === 'transfer' ? 'From Account' : 'Account'} <span className="text-red-500">*</span>
                 </label>
-                <select
-                  {...register('accountId', { required: true })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {activeAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
+                <select {...register('accountId', { required: true })} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
               {type === 'transfer' && (
@@ -375,16 +387,9 @@ export default function TransactionDrawer({
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                     To Account <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    {...register('toAccountId')}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
+                  <select {...register('toAccountId')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Select...</option>
-                    {activeAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
+                    {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
               )}
@@ -392,58 +397,104 @@ export default function TransactionDrawer({
 
             {/* ── Notes / Remark ────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Notes / Remark
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Describe this transaction... (optional)"
-                {...register('notes')}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Notes / Remark</label>
+              <textarea rows={3} placeholder="Describe this transaction... (optional)" {...register('notes')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
 
             {/* ── Category ──────────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Category
-              </label>
-              <button
-                type="button"
-                onClick={() => setCatSheetOpen(true)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm hover:border-blue-300 transition-colors"
-              >
-                <span className={category ? 'text-slate-900 font-medium' : 'text-slate-400'}>
-                  {category || 'Select category...'}
-                </span>
-                <svg
-                  className="h-4 w-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Category</label>
+              <button type="button" onClick={() => setCatSheetOpen(true)} className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm hover:border-blue-300 transition-colors">
+                <span className={category ? 'text-slate-900 font-medium' : 'text-slate-400'}>{category || 'Select category...'}</span>
+                <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
 
+            {/* ── Allocate this transaction (expense only, new only) ─── */}
+            {type === 'expense' && !isEdit && (
+              <div className="px-5 pb-4">
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                    <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Allocate this transaction</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Link this spend to a goal</p>
+                  </div>
+                  <div className="p-4">
+                    {/* Allocation type buttons */}
+                    <div className="flex gap-2 mb-1">
+                      <button
+                        type="button"
+                        onClick={() => { setAllocType('none'); setLinkedGoalId(''); }}
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${allocType === 'none' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                      >
+                        Normal Expense
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAllocType('goal')}
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${allocType === 'goal' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-500 border-slate-200 hover:border-sky-200'}`}
+                      >
+                        🎯 Goal
+                      </button>
+                    </div>
+
+                    {/* Goal selector */}
+                    {allocType === 'goal' && (
+                      <div className="mt-3">
+                        {activeGoals.length === 0 ? (
+                          <p className="text-sm text-slate-400 text-center py-3">
+                            No active goals yet. Create one in the Goals tab first.
+                          </p>
+                        ) : (
+                          <>
+                            <select
+                              value={linkedGoalId}
+                              onChange={(e) => setLinkedGoalId(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border border-sky-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            >
+                              <option value="">Select a goal…</option>
+                              {activeGoals.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  🎯 {g.name} — {formatCurrency(g.targetMinorUnits - g.currentMinorUnits, g.currency)} remaining
+                                </option>
+                              ))}
+                            </select>
+
+                            {selectedGoal && amountMinorUnits > 0 && (
+                              <GoalAllocationPreview
+                                goal={selectedGoal}
+                                amountMinorUnits={amountMinorUnits}
+                              />
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Edit: show existing goal link (read-only) ─────────── */}
+            {isEdit && initial?.allocationType === 'goal' && initial.linkedEntityName && (
+              <div className="px-5 pb-4">
+                <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-xl px-4 py-3">
+                  <span className="text-lg">🎯</span>
+                  <div>
+                    <p className="text-xs font-semibold text-sky-700">Linked to Goal</p>
+                    <p className="text-sm font-medium text-slate-800">{initial.linkedEntityName}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ── Payment Mode ───────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Payment Mode
-              </label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode</label>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(PAYMENT_MODE_LABELS).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setValue('paymentMethod', paymentMethod === id ? '' : id)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                      paymentMethod === id
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                    }`}
-                  >
+                  <button key={id} type="button" onClick={() => setValue('paymentMethod', paymentMethod === id ? '' : id)} className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${paymentMethod === id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}>
                     {label}
                   </button>
                 ))}
@@ -452,15 +503,8 @@ export default function TransactionDrawer({
 
             {/* ── Tags ──────────────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Tags
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. work, personal, tax (comma separated)"
-                {...register('tags')}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Tags</label>
+              <input type="text" placeholder="e.g. work, personal, tax (comma separated)" {...register('tags')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
 
             {/* spacer */}
@@ -469,25 +513,23 @@ export default function TransactionDrawer({
 
           {/* ── Sticky save button ─────────────────────────────────── */}
           <div className="shrink-0 px-5 py-4 border-t border-slate-100 bg-white flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
-            >
+            <button type="button" onClick={onClose} className="px-5 py-3.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (allocType === 'goal' && !linkedGoalId && activeGoals.length > 0)}
               className={`flex-1 py-3.5 rounded-xl text-white font-bold text-sm transition-colors disabled:opacity-60 ${
-                type === 'income'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : type === 'expense'
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                allocType === 'goal' ? 'bg-sky-600 hover:bg-sky-700'
+                  : type === 'income' ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : type === 'expense' ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {isSubmitting ? 'Saving…' : isEdit ? 'Update Transaction' : 'Save Transaction'}
+              {isSubmitting ? 'Saving…'
+                : isEdit ? 'Update Transaction'
+                : allocType === 'goal' && linkedGoalId ? 'Save & Update Goal'
+                : 'Save Transaction'}
             </button>
           </div>
         </form>
