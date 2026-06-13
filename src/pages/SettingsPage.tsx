@@ -50,7 +50,7 @@ interface AccountFormData {
 }
 
 export default function SettingsPage() {
-  const { theme, currency, defaultAccountId, setTheme, setCurrency, setDefaultAccountId } = useUIStore();
+  const { theme, currency, defaultAccountId, showAccountBreakdown, setTheme, setCurrency, setDefaultAccountId, setShowAccountBreakdown } = useUIStore();
   const { accounts, load: loadAccounts, add: addAccount, remove: removeAccount } = useAccountStore();
   const loadTransactions = useTransactionStore((s) => s.load);
   const loadLoans = useLoanStore((s) => s.load);
@@ -222,6 +222,34 @@ export default function SettingsPage() {
             onChange={(e) => setCurrency(e.target.value)}
             options={CURRENCIES}
           />
+        </div>
+      </Card>
+
+      {/* Dashboard & Transactions */}
+      <Card>
+        <CardHeader><CardTitle>Dashboard &amp; Transactions</CardTitle></CardHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-slate-400">Customise what appears on the Transactions screen.</p>
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-0.5 shrink-0">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={showAccountBreakdown}
+                onChange={(e) => setShowAccountBreakdown(e.target.checked)}
+              />
+              <div className="w-10 h-6 bg-slate-200 peer-checked:bg-blue-600 rounded-full transition-colors" />
+              <div className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">
+                Show Account Breakdown on Transactions Screen
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Displays a compact per-account balance grid below Net Balance. Tap any account to filter transactions.
+              </p>
+            </div>
+          </label>
         </div>
       </Card>
 

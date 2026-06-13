@@ -3,8 +3,10 @@ import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, startOf
 import { useTransactionStore } from '../store/useTransactionStore';
 import { useAccountStore } from '../store/useAccountStore';
 import { useGoalStore } from '../store/useGoalStore';
+import { useUIStore } from '../store/useUIStore';
 import type { Transaction } from '../core/types';
 import { formatCurrency, isScheduled as isTxnScheduled } from '../core/types';
+import AccountBreakdown from '../components/transactions/AccountBreakdown';
 import TransactionDrawer from '../components/transactions/TransactionDrawer';
 import CategorySheet from '../components/transactions/CategorySheet';
 import BottomSheet from '../components/ui/BottomSheet';
@@ -109,6 +111,7 @@ function SummaryCard({
   scheduledIncome,
   scheduledExpense,
   count,
+  breakdownSlot,
 }: {
   income: number;
   expense: number;
@@ -116,6 +119,7 @@ function SummaryCard({
   scheduledIncome: number;
   scheduledExpense: number;
   count: number;
+  breakdownSlot?: React.ReactNode;
 }) {
   return (
     <div className="mx-4 mb-4 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -137,6 +141,9 @@ function SummaryCard({
           </div>
         </div>
       </div>
+
+      {/* Account Breakdown (optional) */}
+      {breakdownSlot}
 
       {/* Income / Expense / Scheduled */}
       <div className="grid grid-cols-3 divide-x divide-slate-100">
@@ -192,9 +199,10 @@ function TxnCard({
 
   const amountPrefix = txn.type === 'income' ? '+' : txn.type === 'expense' ? '−' : '';
 
+  const displayCategory = txn.category && txn.category !== 'Uncategorized' ? txn.category : '';
   const title = isGoalLinked && txn.linkedEntityName
     ? txn.linkedEntityName
-    : txn.notes || txn.merchant || txn.category;
+    : txn.notes || txn.merchant || displayCategory || txn.type;
 
   return (
     <div
@@ -222,12 +230,12 @@ function TxnCard({
 
               {/* Chips row */}
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                {txn.category &&
-                  txn.category.toLowerCase() !== txn.type.toLowerCase() &&
+                {displayCategory &&
+                  displayCategory.toLowerCase() !== txn.type.toLowerCase() &&
                   (txn.notes || txn.merchant || isGoalLinked) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
-                    <span>{CATEGORY_EMOJIS[txn.category] ?? '📌'}</span>
-                    {txn.category}
+                    <span>{CATEGORY_EMOJIS[displayCategory] ?? '📌'}</span>
+                    {displayCategory}
                   </span>
                 )}
                 {txn.paymentMethod && (
@@ -514,20 +522,27 @@ function ScheduledCard({
 
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              {/* Title: notes > merchant > category */}
-              <p className="text-sm font-semibold text-slate-900 truncate">
-                {txn.notes || txn.merchant || txn.category}
-              </p>
+              {/* Title: notes > merchant > category (skip Uncategorized) */}
+              {(() => {
+                const scat = txn.category && txn.category !== 'Uncategorized' ? txn.category : '';
+                return (
+                  <>
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {txn.notes || txn.merchant || scat || txn.type}
+                    </p>
 
-              {/* Category chip — hidden when it already appears as the title */}
-              {txn.category &&
-                txn.category.toLowerCase() !== txn.type.toLowerCase() &&
-                (txn.notes || txn.merchant) && (
-                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-white text-slate-600 rounded-full text-xs font-medium border border-slate-200">
-                  <span>{CATEGORY_EMOJIS[txn.category] ?? '📌'}</span>
-                  {txn.category}
-                </span>
-              )}
+                    {/* Category chip — only when there's a real category, hidden when already title */}
+                    {scat &&
+                      scat.toLowerCase() !== txn.type.toLowerCase() &&
+                      (txn.notes || txn.merchant) && (
+                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-white text-slate-600 rounded-full text-xs font-medium border border-slate-200">
+                        <span>{CATEGORY_EMOJIS[scat] ?? '📌'}</span>
+                        {scat}
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Date */}
               <p className={`text-xs font-medium mt-1 ${txn.hasFixedScheduleDate ? 'text-purple-600' : 'text-slate-400'}`}>
@@ -786,6 +801,7 @@ export default function TransactionsPage() {
   const { transactions, load, remove, markCompleted } = useTransactionStore();
   const { accounts, load: loadAccounts } = useAccountStore();
   const { load: loadGoals } = useGoalStore();
+  const { showAccountBreakdown } = useUIStore();
 
   // ── Filter state ───────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -1082,6 +1098,22 @@ export default function TransactionsPage() {
             scheduledIncome={summary.scheduledIncome}
             scheduledExpense={summary.scheduledExpense}
             count={filtered.length}
+            breakdownSlot={
+              showAccountBreakdown ? (
+                <AccountBreakdown
+                  accounts={accounts}
+                  transactions={transactions}
+                  accountFilter={accountFilter}
+                  onAccountClick={(id) => {
+                    if (id === '__clear__') {
+                      setAccountFilter([]);
+                    } else {
+                      setAccountFilter([id]);
+                    }
+                  }}
+                />
+              ) : undefined
+            }
           />
         </div>
 
