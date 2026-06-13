@@ -9,16 +9,6 @@ interface AccountWithBalance {
   balance: number;
 }
 
-// ── Icons ──────────────────────────────────────────────────────────────────
-
-const TYPE_EMOJI: Record<string, string> = {
-  checking: '🏦',
-  savings: '🐷',
-  cash: '💵',
-  credit: '💳',
-  investment: '📈',
-};
-
 // ── Balance computation ────────────────────────────────────────────────────
 
 function computeBalances(accounts: Account[], transactions: Transaction[]): AccountWithBalance[] {
@@ -120,11 +110,6 @@ function AccountCard({
       >
         {neg ? '−' : ''}{formatCurrency(Math.abs(item.balance), item.account.currency)}
       </p>
-
-      {/* Account type pill */}
-      <span className="mt-1 text-xs text-slate-400 leading-none">
-        {TYPE_EMOJI[item.account.type] ?? '🏦'} {item.account.type}
-      </span>
     </button>
   );
 }

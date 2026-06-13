@@ -284,7 +284,7 @@ export default function DashboardPage() {
           {financeGuidance.map((tip, i) => (
             <div key={i} className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
               <span className="text-amber-600 text-xs mt-0.5 shrink-0">▲</span>
-              <p className="text-xs text-amber-300/90">{tip}</p>
+              <p className="text-xs text-amber-800">{tip}</p>
             </div>
           ))}
         </div>
