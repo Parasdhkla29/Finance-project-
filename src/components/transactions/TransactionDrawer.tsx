@@ -8,7 +8,6 @@ import { toMinor, formatCurrency } from '../../core/types';
 import type { Transaction, FinancialGoal } from '../../core/types';
 import { createPortal } from 'react-dom';
 import CategorySheet from './CategorySheet';
-import { PAYMENT_MODE_LABELS } from './FilterSheets';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +114,14 @@ export default function TransactionDrawer({
   const activeGoals = goals.filter((g) => !g.isAchieved && !g.deletedAt);
   const defaultAcc = defaultAccountId ?? activeAccounts[0]?.id ?? '';
 
+  // Account groups for the payment picker
+  const bankAccounts = activeAccounts.filter((a) => a.type === 'checking' || a.type === 'savings');
+  const cashAccounts = activeAccounts.filter((a) => a.type === 'cash');
+  const creditAccounts = activeAccounts.filter((a) => a.type === 'credit');
+
+  type PaymentMode = 'bank' | 'cash' | 'credit' | 'other' | '';
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('bank');
+
   const isEdit = !!initial;
   const initScheduled =
     initial?.status === 'scheduled' || initial?.paymentTiming === 'future';
@@ -152,6 +159,8 @@ export default function TransactionDrawer({
   const category = watch('category');
   const paymentMethod = watch('paymentMethod');
   const amountStr = watch('amount');
+  const watchAccountId = watch('accountId');
+  const [notesError, setNotesError] = useState('');
 
   const amountMinorUnits = toMinor(parseFloat(amountStr) || 0);
   const selectedGoal = activeGoals.find((g) => g.id === linkedGoalId);
@@ -183,8 +192,38 @@ export default function TransactionDrawer({
         setAllocType('none');
         setLinkedGoalId('');
       }
+      // Restore paymentMode from existing account type
+      if (initial) {
+        const acc = activeAccounts.find((a) => a.id === initial.accountId);
+        if (acc?.type === 'cash') setPaymentMode('cash');
+        else if (acc?.type === 'credit') setPaymentMode('credit');
+        else if (initial.paymentMethod === 'other') setPaymentMode('other');
+        else setPaymentMode('bank');
+      } else {
+        setPaymentMode(cashAccounts.length > 0 ? 'cash' : bankAccounts.length > 0 ? 'bank' : 'other');
+      }
+      setNotesError('');
     }
   }, [open]);
+
+  function handlePaymentModeChange(mode: PaymentMode) {
+    setPaymentMode(mode);
+    setNotesError('');
+    if (mode === 'bank') {
+      setValue('paymentMethod', 'bank_transfer');
+      if (bankAccounts.length > 0) setValue('accountId', bankAccounts[0].id);
+    } else if (mode === 'cash') {
+      setValue('paymentMethod', 'cash');
+      const cashAcc = cashAccounts[0] ?? activeAccounts[0];
+      if (cashAcc) setValue('accountId', cashAcc.id);
+    } else if (mode === 'credit') {
+      setValue('paymentMethod', 'card');
+      if (creditAccounts.length > 0) setValue('accountId', creditAccounts[0].id);
+    } else if (mode === 'other') {
+      setValue('paymentMethod', 'other');
+      setValue('accountId', defaultAcc);
+    }
+  }
 
   // Lock body scroll
   useEffect(() => {
@@ -193,6 +232,11 @@ export default function TransactionDrawer({
   }, [open]);
 
   async function onSubmit(data: FormData) {
+    if (paymentMode === 'other' && !data.notes.trim()) {
+      setNotesError('Notes are required when "Other" is selected.');
+      return;
+    }
+    setNotesError('');
     const account = activeAccounts.find((a) => a.id === data.accountId);
     const isScheduled = data.status === 'scheduled';
 
@@ -372,33 +416,175 @@ export default function TransactionDrawer({
               </div>
             )}
 
-            {/* ── Account ───────────────────────────────────────────── */}
-            <div className="px-5 pb-4 flex flex-col gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  {type === 'transfer' ? 'From Account' : 'Account'} <span className="text-red-500">*</span>
-                </label>
-                <select {...register('accountId', { required: true })} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
-              {type === 'transfer' && (
+            {/* ── Payment Method (unified picker) ───────────────────── */}
+            <div className="px-5 pb-4">
+              {type === 'transfer' ? (
+                /* Transfer: keep simple From / To selectors */
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                      From Account <span className="text-red-500">*</span>
+                    </label>
+                    <select {...register('accountId', { required: true })} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                      To Account <span className="text-red-500">*</span>
+                    </label>
+                    <select {...register('toAccountId')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">Select...</option>
+                      {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                /* Income / Expense: smart payment mode picker */
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                    To Account <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                    Payment Method <span className="text-red-500">*</span>
                   </label>
-                  <select {...register('toAccountId')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Select...</option>
-                    {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+
+                  {/* 4-mode top row */}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {([
+                      { id: 'bank',   emoji: '🏦', label: 'Bank' },
+                      { id: 'cash',   emoji: '💵', label: 'Cash' },
+                      { id: 'credit', emoji: '💳', label: 'Credit' },
+                      { id: 'other',  emoji: '📌', label: 'Other' },
+                    ] as const).map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handlePaymentModeChange(m.id)}
+                        className={`flex flex-col items-center gap-1 py-3 rounded-xl border transition-all active:scale-95 ${
+                          paymentMode === m.id
+                            ? 'bg-blue-50 border-blue-300 shadow-sm'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-xl leading-none">{m.emoji}</span>
+                        <span className={`text-xs font-semibold ${paymentMode === m.id ? 'text-blue-700' : 'text-slate-600'}`}>
+                          {m.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Bank sub-picker */}
+                  {paymentMode === 'bank' && (
+                    bankAccounts.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-slate-400 mb-1.5">Select bank account</p>
+                        {bankAccounts.map((a) => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setValue('accountId', a.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                              watchAccountId === a.id
+                                ? 'bg-blue-50 border-blue-300'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                            <span className={`text-sm font-medium flex-1 truncate ${watchAccountId === a.id ? 'text-blue-700' : 'text-slate-800'}`}>
+                              {a.name}
+                            </span>
+                            <span className="text-xs text-slate-400 capitalize">{a.type}</span>
+                            {watchAccountId === a.id && (
+                              <svg className="h-4 w-4 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-2.5">
+                        No bank accounts added yet — go to Settings → Accounts.
+                      </p>
+                    )
+                  )}
+
+                  {/* Credit card sub-picker */}
+                  {paymentMode === 'credit' && (
+                    creditAccounts.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-slate-400 mb-1.5">Select credit card</p>
+                        {creditAccounts.map((a) => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setValue('accountId', a.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                              watchAccountId === a.id
+                                ? 'bg-blue-50 border-blue-300'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                            <span className={`text-sm font-medium flex-1 truncate ${watchAccountId === a.id ? 'text-blue-700' : 'text-slate-800'}`}>
+                              {a.name}
+                            </span>
+                            <span className="text-xs text-slate-400">Credit Card</span>
+                            {watchAccountId === a.id && (
+                              <svg className="h-4 w-4 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-2.5">
+                        No credit card accounts added yet — go to Settings → Accounts.
+                      </p>
+                    )
+                  )}
+
+                  {/* Cash: show selected account name */}
+                  {paymentMode === 'cash' && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="text-base">💵</span>
+                      <span className="text-sm font-medium text-slate-700">
+                        {activeAccounts.find((a) => a.id === watchAccountId)?.name ?? 'Cash'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Other: mandatory notes notice + account selector */}
+                  {paymentMode === 'other' && (
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl">
+                        <span className="text-amber-500 text-sm mt-0.5">⚠</span>
+                        <p className="text-xs text-amber-700 font-medium">Notes are required for "Other" payments.</p>
+                      </div>
+                      <select
+                        {...register('accountId')}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* ── Notes / Remark ────────────────────────────────────── */}
             <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Notes / Remark</label>
-              <textarea rows={3} placeholder="Describe this transaction... (optional)" {...register('notes')} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Notes / Remark{paymentMode === 'other' && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              <textarea
+                rows={3}
+                placeholder={paymentMode === 'other' ? 'Required — describe this payment...' : 'Describe this transaction... (optional)'}
+                {...register('notes')}
+                className={`w-full px-4 py-3 rounded-xl border text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 resize-none ${notesError ? 'border-red-300 focus:ring-red-400' : 'border-slate-200 focus:ring-blue-500'}`}
+              />
+              {notesError && <p className="text-xs text-red-500 mt-1">{notesError}</p>}
             </div>
 
             {/* ── Category ──────────────────────────────────────────── */}
@@ -488,18 +674,6 @@ export default function TransactionDrawer({
                 </div>
               </div>
             )}
-
-            {/* ── Payment Mode ───────────────────────────────────────── */}
-            <div className="px-5 pb-4">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode</label>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(PAYMENT_MODE_LABELS).map(([id, label]) => (
-                  <button key={id} type="button" onClick={() => setValue('paymentMethod', paymentMethod === id ? '' : id)} className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${paymentMethod === id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* ── Tags ──────────────────────────────────────────────── */}
             <div className="px-5 pb-4">
