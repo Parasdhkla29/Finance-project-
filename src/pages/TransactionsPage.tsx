@@ -306,6 +306,15 @@ function TxnCard({
 
 // ── Partial payment bottom sheet ──────────────────────────────────────────
 
+const PARTIAL_PAYMENT_METHODS: Array<{ id: string; label: string; emoji: string }> = [
+  { id: 'cash',          label: 'Cash',          emoji: '💵' },
+  { id: 'card',          label: 'Card',          emoji: '💳' },
+  { id: 'online',        label: 'Online',        emoji: '🌐' },
+  { id: 'bank_transfer', label: 'Bank',          emoji: '🏦' },
+  { id: 'wallet',        label: 'Wallet',        emoji: '📱' },
+  { id: 'other',         label: 'Other',         emoji: '📌' },
+];
+
 function PartialPaymentSheet({
   open,
   onClose,
@@ -316,16 +325,29 @@ function PartialPaymentSheet({
   open: boolean;
   onClose: () => void;
   txn: Transaction;
-  onSave: (amount: number, notes: string) => Promise<void>;
+  onSave: (amount: number, notes: string, paymentMethod?: string, linkedAccountId?: string) => Promise<void>;
   onSaved?: (msg: string) => void;
 }) {
   const [amountStr, setAmountStr] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [linkedAccountId, setLinkedAccountId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { accounts } = useAccountStore();
 
   const received = txn.receivedAmountMinorUnits ?? 0;
   const remaining = txn.amountMinorUnits - received;
+
+  // Bank accounts eligible for linking (exclude credit + cash)
+  const bankAccounts = accounts.filter(
+    (a) => !a.isArchived && !a.deletedAt && a.type !== 'cash' && a.type !== 'credit',
+  );
+
+  function handleSelectMethod(id: string) {
+    setPaymentMethod((prev) => (prev === id ? '' : id));
+    if (id !== 'bank_transfer') setLinkedAccountId('');
+  }
 
   async function handleSave() {
     const major = parseFloat(amountStr);
@@ -341,12 +363,14 @@ function PartialPaymentSheet({
     setSaving(true);
     setError('');
     try {
-      await onSave(minor, notes);
+      await onSave(minor, notes, paymentMethod || undefined, linkedAccountId || undefined);
       const newReceived = (txn.receivedAmountMinorUnits ?? 0) + minor;
       const isFull = newReceived >= txn.amountMinorUnits;
       onSaved?.(isFull ? '✓ Income received in full' : '✓ Partial payment saved');
       setAmountStr('');
       setNotes('');
+      setPaymentMethod('');
+      setLinkedAccountId('');
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Save failed';
@@ -360,21 +384,42 @@ function PartialPaymentSheet({
     }
   }
 
+  // Build summary label for the selected method
+  const methodLabel = (() => {
+    if (!paymentMethod) return null;
+    const m = PARTIAL_PAYMENT_METHODS.find((x) => x.id === paymentMethod);
+    if (!m) return null;
+    if (paymentMethod === 'bank_transfer' && linkedAccountId) {
+      const acct = bankAccounts.find((a) => a.id === linkedAccountId);
+      return acct ? `${m.emoji} ${acct.name}` : `${m.emoji} ${m.label}`;
+    }
+    return `${m.emoji} ${m.label}`;
+  })();
+
   return (
     <BottomSheet open={open} onClose={onClose} title="Partial Payment" zIndex={60}>
       <div className="px-4 pt-2 pb-6 space-y-4">
-        {/* Summary */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: 'Total', value: formatCurrency(txn.amountMinorUnits, txn.currency), color: 'text-slate-700' },
-            { label: 'Received', value: formatCurrency(received, txn.currency), color: 'text-emerald-600' },
-            { label: 'Remaining', value: formatCurrency(remaining, txn.currency), color: 'text-amber-600' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="bg-slate-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-              <p className={`text-sm font-bold ${color}`}>{value}</p>
+
+        {/* Summary row */}
+        <div className="bg-slate-50 rounded-2xl overflow-hidden">
+          <div className="grid grid-cols-3 divide-x divide-slate-200">
+            {[
+              { label: 'Total',     value: formatCurrency(txn.amountMinorUnits, txn.currency), color: 'text-slate-700' },
+              { label: 'Received',  value: formatCurrency(received, txn.currency),             color: 'text-emerald-600' },
+              { label: 'Remaining', value: formatCurrency(remaining, txn.currency),            color: 'text-amber-600' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="px-3 py-2.5 text-center">
+                <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+                <p className={`text-sm font-bold ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+          {/* Active method strip */}
+          {methodLabel && (
+            <div className="px-4 py-1.5 bg-emerald-50 border-t border-emerald-100 flex items-center justify-center gap-1.5">
+              <span className="text-xs font-semibold text-emerald-700">via {methodLabel}</span>
             </div>
-          ))}
+          )}
         </div>
 
         {/* Amount input */}
@@ -400,6 +445,67 @@ function PartialPaymentSheet({
           {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
         </div>
 
+        {/* Payment method picker */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            Payment Method
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {PARTIAL_PAYMENT_METHODS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handleSelectMethod(m.id)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-95 ${
+                  paymentMethod === m.id
+                    ? 'bg-emerald-50 border-emerald-300 shadow-sm'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span className="text-base leading-none">{m.emoji}</span>
+                <span className={`text-xs font-semibold ${paymentMethod === m.id ? 'text-emerald-700' : 'text-slate-700'}`}>
+                  {m.label}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Bank account sub-picker */}
+          {paymentMethod === 'bank_transfer' && bankAccounts.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              <p className="text-xs text-slate-400 ml-1">Select bank account</p>
+              <div className="space-y-1">
+                {bankAccounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setLinkedAccountId((prev) => (prev === a.id ? '' : a.id))}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                      linkedAccountId === a.id
+                        ? 'bg-emerald-50 border-emerald-300'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: a.color }}
+                    />
+                    <span className={`text-sm font-medium flex-1 ${linkedAccountId === a.id ? 'text-emerald-700' : 'text-slate-800'}`}>
+                      {a.name}
+                    </span>
+                    <span className="text-xs text-slate-400">{a.type}</span>
+                    {linkedAccountId === a.id && (
+                      <svg className="h-4 w-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Notes */}
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
@@ -419,19 +525,37 @@ function PartialPaymentSheet({
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment History</p>
             <div className="space-y-1.5">
-              {txn.partialPayments!.map((p) => (
-                <div key={p.id} className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2">
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-700">
-                      +{formatCurrency(p.amountMinorUnits, txn.currency)}
+              {txn.partialPayments!.map((p) => {
+                const pm = PARTIAL_PAYMENT_METHODS.find((x) => x.id === p.paymentMethod);
+                const acctName = p.linkedAccountId
+                  ? accounts.find((a) => a.id === p.linkedAccountId)?.name
+                  : undefined;
+                const methodStr = pm
+                  ? acctName
+                    ? `${pm.emoji} ${acctName}`
+                    : `${pm.emoji} ${pm.label}`
+                  : null;
+                return (
+                  <div key={p.id} className="flex items-center justify-between bg-emerald-50 rounded-xl px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-emerald-700">
+                        +{formatCurrency(p.amountMinorUnits, txn.currency)}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {methodStr && (
+                          <span className="text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full px-2 py-0.5">
+                            {methodStr}
+                          </span>
+                        )}
+                        {p.notes && <p className="text-xs text-slate-500 italic">{p.notes}</p>}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 shrink-0 ml-2">
+                      {new Date(p.recordedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    {p.notes && <p className="text-xs text-slate-500">{p.notes}</p>}
                   </div>
-                  <p className="text-xs text-slate-400">
-                    {new Date(p.recordedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -697,7 +821,7 @@ function ScheduledCard({
           open={showPartialSheet}
           onClose={() => setShowPartialSheet(false)}
           txn={txn}
-          onSave={(amount, notes) => addPartialPayment(txn.id, amount, notes)}
+          onSave={(amount, notes, method, acctId) => addPartialPayment(txn.id, amount, notes, method, acctId)}
           onSaved={(msg) => onSuccess?.(msg)}
         />
       )}

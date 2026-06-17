@@ -40,6 +40,8 @@ export interface PartialPayment {
   amountMinorUnits: number;
   notes?: string;
   recordedAt: string;
+  paymentMethod?: PaymentMethod;
+  linkedAccountId?: string;
 }
 
 export interface Transaction extends BaseEntity {

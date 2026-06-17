@@ -24,7 +24,7 @@ interface TransactionState {
   remove: (id: string) => Promise<void>;
   markCompleted: (id: string) => Promise<void>;
   markFullReceived: (id: string) => Promise<void>;
-  addPartialPayment: (id: string, amountMinorUnits: number, notes?: string) => Promise<void>;
+  addPartialPayment: (id: string, amountMinorUnits: number, notes?: string, paymentMethod?: string, linkedAccountId?: string) => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -118,7 +118,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
   },
 
-  addPartialPayment: async (id, amountMinorUnits, notes) => {
+  addPartialPayment: async (id, amountMinorUnits, notes, paymentMethod, linkedAccountId) => {
     const userId = getCurrentUserId();
     const txn = get().transactions.find((t) => t.id === id);
     if (!txn) return;
@@ -129,6 +129,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       amountMinorUnits,
       notes: notes?.trim() || undefined,
       recordedAt: now(),
+      paymentMethod: paymentMethod as PartialPayment['paymentMethod'] | undefined,
+      linkedAccountId: linkedAccountId || undefined,
     };
 
     const existing = txn.partialPayments ?? [];
