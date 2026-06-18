@@ -4,6 +4,7 @@ import { useAccountStore } from '../../store/useAccountStore';
 import { useTransactionStore } from '../../store/useTransactionStore';
 import { useGoalStore } from '../../store/useGoalStore';
 import { useUIStore } from '../../store/useUIStore';
+import { useCreditCardStore } from '../../store/useCreditCardStore';
 import { toMinor, formatCurrency } from '../../core/types';
 import type { Transaction, FinancialGoal } from '../../core/types';
 import { createPortal } from 'react-dom';
@@ -104,7 +105,9 @@ export default function TransactionDrawer({
   const { add, update } = useTransactionStore();
   const { goals, load: loadGoals, allocateAmount } = useGoalStore();
   const { defaultAccountId } = useUIStore();
+  const { cards: creditCards, addTransaction: addCCTransaction } = useCreditCardStore();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
+  const [selectedCreditCardId, setSelectedCreditCardId] = useState('');
 
   // Allocation state (outside react-hook-form — has richer interactivity)
   const [allocType, setAllocType] = useState<'none' | 'goal'>('none');
@@ -118,6 +121,8 @@ export default function TransactionDrawer({
   const bankAccounts = activeAccounts.filter((a) => a.type === 'checking' || a.type === 'savings');
   const cashAccounts = activeAccounts.filter((a) => a.type === 'cash');
   const creditAccounts = activeAccounts.filter((a) => a.type === 'credit');
+  // Also include credit cards from the dedicated credit card store
+  const activeCreditCards = creditCards.filter((c) => !c.deletedAt && c.status !== 'closed');
 
   type PaymentMode = 'bank' | 'cash' | 'credit' | 'other' | '';
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('bank');
@@ -196,11 +201,13 @@ export default function TransactionDrawer({
       if (initial) {
         const acc = activeAccounts.find((a) => a.id === initial.accountId);
         if (acc?.type === 'cash') setPaymentMode('cash');
-        else if (acc?.type === 'credit') setPaymentMode('credit');
+        else if (acc?.type === 'credit' || initial.allocationType === 'credit_card') setPaymentMode('credit');
         else if (initial.paymentMethod === 'other') setPaymentMode('other');
         else setPaymentMode('bank');
+        setSelectedCreditCardId(initial.allocationType === 'credit_card' ? (initial.linkedGoalId ?? '') : '');
       } else {
-        setPaymentMode(cashAccounts.length > 0 ? 'cash' : bankAccounts.length > 0 ? 'bank' : 'other');
+        setPaymentMode(cashAccounts.length > 0 ? 'cash' : bankAccounts.length > 0 ? 'bank' : (activeCreditCards.length > 0 || creditAccounts.length > 0) ? 'credit' : 'other');
+        setSelectedCreditCardId('');
       }
       setNotesError('');
     }
@@ -209,6 +216,7 @@ export default function TransactionDrawer({
   function handlePaymentModeChange(mode: PaymentMode) {
     setPaymentMode(mode);
     setNotesError('');
+    setSelectedCreditCardId('');
     if (mode === 'bank') {
       setValue('paymentMethod', 'bank_transfer');
       if (bankAccounts.length > 0) setValue('accountId', bankAccounts[0].id);
@@ -218,7 +226,12 @@ export default function TransactionDrawer({
       if (cashAcc) setValue('accountId', cashAcc.id);
     } else if (mode === 'credit') {
       setValue('paymentMethod', 'card');
-      if (creditAccounts.length > 0) setValue('accountId', creditAccounts[0].id);
+      if (creditAccounts.length > 0) {
+        setValue('accountId', creditAccounts[0].id);
+      } else {
+        setValue('accountId', defaultAcc);
+        if (activeCreditCards.length > 0) setSelectedCreditCardId(activeCreditCards[0].id);
+      }
     } else if (mode === 'other') {
       setValue('paymentMethod', 'other');
       setValue('accountId', defaultAcc);
@@ -250,12 +263,16 @@ export default function TransactionDrawer({
     const isGoalLinked = !isEdit && type === 'expense' && allocType === 'goal' && !!linkedGoalId;
     const goal = isGoalLinked ? activeGoals.find((g) => g.id === linkedGoalId) : undefined;
 
+    // Determine credit card link (from useCreditCardStore)
+    const isCCLinked = paymentMode === 'credit' && !!selectedCreditCardId && !creditAccounts.some((a) => a.id === watchAccountId);
+    const selectedCC = isCCLinked ? activeCreditCards.find((c) => c.id === selectedCreditCardId) : undefined;
+
     const payload: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> = {
       accountId: data.accountId,
       toAccountId: data.type === 'transfer' && data.toAccountId ? data.toAccountId : undefined,
       type: data.type,
       amountMinorUnits: toMinor(parseFloat(data.amount) || 0),
-      currency: account?.currency ?? 'GBP',
+      currency: account?.currency ?? (selectedCC?.currency ?? 'GBP'),
       category: data.category || 'Uncategorized',
       notes: data.notes || undefined,
       date: resolvedDate,
@@ -265,10 +282,10 @@ export default function TransactionDrawer({
       hasFixedScheduleDate: isScheduled ? data.hasFixedDate : undefined,
       tags: data.tags.split(',').map((t) => t.trim()).filter(Boolean),
       isRecurring: false,
-      // Goal allocation
-      allocationType: isGoalLinked ? 'goal' : (isEdit ? initial?.allocationType : undefined),
-      linkedGoalId: isGoalLinked ? linkedGoalId : (isEdit ? initial?.linkedGoalId : undefined),
-      linkedEntityName: isGoalLinked ? goal?.name : (isEdit ? initial?.linkedEntityName : undefined),
+      // Allocation — goal takes priority over credit card
+      allocationType: isGoalLinked ? 'goal' : isCCLinked ? 'credit_card' : (isEdit ? initial?.allocationType : undefined),
+      linkedGoalId: isGoalLinked ? linkedGoalId : isCCLinked ? selectedCreditCardId : (isEdit ? initial?.linkedGoalId : undefined),
+      linkedEntityName: isGoalLinked ? goal?.name : isCCLinked ? selectedCC?.name : (isEdit ? initial?.linkedEntityName : undefined),
     };
 
     if (isEdit && initial) {
@@ -280,6 +297,17 @@ export default function TransactionDrawer({
       let achieved = false;
       if (isGoalLinked) {
         achieved = await allocateAmount(linkedGoalId, payload.amountMinorUnits);
+      }
+      // Track spend on the linked credit card
+      if (isCCLinked && selectedCC && payload.type === 'expense') {
+        await addCCTransaction(selectedCC.id, {
+          merchant: payload.notes || payload.category || 'Expense',
+          category: payload.category,
+          amountMinorUnits: payload.amountMinorUnits,
+          currency: selectedCC.currency,
+          date: resolvedDate,
+          notes: payload.notes,
+        });
       }
       onSaved?.(achieved);
     }
@@ -510,26 +538,54 @@ export default function TransactionDrawer({
 
                   {/* Credit card sub-picker */}
                   {paymentMode === 'credit' && (
-                    creditAccounts.length > 0 ? (
+                    creditAccounts.length > 0 || activeCreditCards.length > 0 ? (
                       <div className="space-y-1.5">
                         <p className="text-xs text-slate-400 mb-1.5">Select credit card</p>
+                        {/* Cards from Account store (type === 'credit') */}
                         {creditAccounts.map((a) => (
                           <button
                             key={a.id}
                             type="button"
-                            onClick={() => setValue('accountId', a.id)}
+                            onClick={() => { setValue('accountId', a.id); setSelectedCreditCardId(''); }}
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                              watchAccountId === a.id
+                              watchAccountId === a.id && !selectedCreditCardId
                                 ? 'bg-blue-50 border-blue-300'
                                 : 'bg-white border-slate-200 hover:border-slate-300'
                             }`}
                           >
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
-                            <span className={`text-sm font-medium flex-1 truncate ${watchAccountId === a.id ? 'text-blue-700' : 'text-slate-800'}`}>
+                            <span className={`text-sm font-medium flex-1 truncate ${watchAccountId === a.id && !selectedCreditCardId ? 'text-blue-700' : 'text-slate-800'}`}>
                               {a.name}
                             </span>
-                            <span className="text-xs text-slate-400">Credit Card</span>
-                            {watchAccountId === a.id && (
+                            <span className="text-xs text-slate-400">Account</span>
+                            {watchAccountId === a.id && !selectedCreditCardId && (
+                              <svg className="h-4 w-4 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                        {/* Cards from CreditCard store */}
+                        {activeCreditCards.map((cc) => (
+                          <button
+                            key={cc.id}
+                            type="button"
+                            onClick={() => { setSelectedCreditCardId(cc.id); setValue('accountId', defaultAcc); }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                              selectedCreditCardId === cc.id
+                                ? 'bg-blue-50 border-blue-300'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cc.color }} />
+                            <div className={`flex-1 min-w-0`}>
+                              <span className={`text-sm font-medium block truncate ${selectedCreditCardId === cc.id ? 'text-blue-700' : 'text-slate-800'}`}>
+                                {cc.name}
+                              </span>
+                              <span className="text-xs text-slate-400">···· {cc.last4}</span>
+                            </div>
+                            <span className="text-xs text-slate-400 capitalize shrink-0">{cc.network}</span>
+                            {selectedCreditCardId === cc.id && (
                               <svg className="h-4 w-4 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
@@ -539,7 +595,7 @@ export default function TransactionDrawer({
                       </div>
                     ) : (
                       <p className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-2.5">
-                        No credit card accounts added yet — go to Settings → Accounts.
+                        No credit cards added yet — add one in the Credit Cards tab.
                       </p>
                     )
                   )}
