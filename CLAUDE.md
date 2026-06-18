@@ -78,6 +78,8 @@ All entities extend `BaseEntity` (`id`, `createdAt`, `updatedAt`, `deletedAt?`).
 
 Goals connect to transactions via `linkedGoalId` on `Transaction` + `allocationType: 'goal'`. When a goal-linked transaction is saved, call `allocateAmount(goalId, amount)`; on delete, call `deallocateAmount(goalId, amount)`.
 
+Credit cards (from `useCreditCardStore`) connect to transactions via `linkedCreditCardId` + `allocationType: 'credit_card'`. When saved, call `addCCTransaction` on the credit card store to update the card's balance and transaction history.
+
 ### TypeScript Constraints
 
 `erasableSyntaxOnly: true` is set — **do not use `enum`** (use `type` unions instead) and avoid decorators or other non-erasable syntax. `verbatimModuleSyntax: true` — use `import type` for type-only imports.
