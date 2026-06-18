@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useUIStore, applyTheme } from '../../store/useUIStore';
@@ -17,94 +17,19 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Settings',
 };
 
-// ── FAB menu items ─────────────────────────────────────────────────────────
-
-interface FabItem {
-  icon: string;
-  label: string;
-  sub: string;
-  bg: string;
-  action: 'transaction' | 'navigate';
-  path?: string;
-}
-
-const FAB_ITEMS: FabItem[] = [
-  {
-    icon: '💸',
-    label: 'Transaction',
-    sub: 'Log income or expense',
-    bg: 'bg-sky-100',
-    action: 'transaction',
-  },
-  {
-    icon: '📊',
-    label: 'Budget',
-    sub: 'Create a spending limit',
-    bg: 'bg-emerald-100',
-    action: 'navigate',
-    path: '/budgets',
-  },
-  {
-    icon: '🏦',
-    label: 'Loan',
-    sub: 'Record borrowed/lent money',
-    bg: 'bg-amber-100',
-    action: 'navigate',
-    path: '/loans',
-  },
-  {
-    icon: '💳',
-    label: 'Credit Card',
-    sub: 'Add or manage a card',
-    bg: 'bg-purple-100',
-    action: 'navigate',
-    path: '/credit-cards',
-  },
-  {
-    icon: '🔁',
-    label: 'Subscription',
-    sub: 'Track a recurring payment',
-    bg: 'bg-blue-100',
-    action: 'navigate',
-    path: '/subscriptions',
-  },
-  {
-    icon: '🎯',
-    label: 'Goal',
-    sub: 'Set a savings target',
-    bg: 'bg-pink-100',
-    action: 'navigate',
-    path: '/goals',
-  },
-];
-
 // ── AppShell ───────────────────────────────────────────────────────────────
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { theme, sidebarOpen, setSidebarOpen } = useUIStore();
   const location = useLocation();
-  const navigate = useNavigate();
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'PrivyLedger';
 
-  const [fabOpen, setFabOpen] = useState(false);
   const [showTxnModal, setShowTxnModal] = useState(false);
-
-  // Close FAB menu on route change
-  useEffect(() => { setFabOpen(false); }, [location.pathname]);
 
   // Apply theme on mount and whenever it changes
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
-
-  function handleFabItem(item: FabItem) {
-    setFabOpen(false);
-    if (item.action === 'transaction') {
-      setShowTxnModal(true);
-    } else if (item.path) {
-      navigate(item.path);
-    }
-  }
 
   return (
     <div className="flex h-dvh bg-slate-50 text-slate-900 overflow-hidden">
@@ -142,65 +67,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* ── Mobile FAB ── */}
-
-      {/* Backdrop */}
-      {fabOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-slate-50/70 backdrop-blur-sm lg:hidden"
-          onClick={() => setFabOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Expanded menu items */}
-      {fabOpen && (
-        <div
-          className="fixed bottom-24 right-4 z-40 flex flex-col gap-2 items-end lg:hidden"
-          style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          {FAB_ITEMS.map((item, i) => (
-            <button
-              key={item.label}
-              onClick={() => handleFabItem(item)}
-              className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3 min-w-[180px] hover:border-slate-400 hover:bg-slate-100 transition-all active:scale-95 text-left shadow-xl"
-              style={{
-                animationDelay: `${i * 30}ms`,
-              }}
-            >
-              <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center text-lg shrink-0`}>
-                {item.icon}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900 leading-tight">{item.label}</p>
-                <p className="text-xs text-slate-400 leading-tight mt-0.5">{item.sub}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* FAB button */}
+      {/* ── Mobile FAB — single tap opens Add Transaction ── */}
       <button
-        onClick={() => setFabOpen((o) => !o)}
-        className={`fixed bottom-6 right-4 z-40 lg:hidden w-14 h-14 rounded-[18px] shadow-lg flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
-          fabOpen
-            ? 'bg-white border border-slate-300 text-slate-800 shadow-none'
-            : 'bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white shadow-sky-500/30'
-        }`}
-        aria-label={fabOpen ? 'Close quick-add menu' : 'Open quick-add menu'}
-        aria-expanded={fabOpen}
+        onClick={() => setShowTxnModal(true)}
+        className="fixed bottom-6 right-4 z-40 lg:hidden w-14 h-14 rounded-[18px] bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white shadow-lg shadow-sky-500/30 flex items-center justify-center transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        aria-label="Add transaction"
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {fabOpen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-        )}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
       </button>
 
       {/* Transaction drawer */}
