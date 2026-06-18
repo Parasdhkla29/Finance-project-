@@ -107,6 +107,7 @@ function DateGroupHeader({ dateKey }: { dateKey: string }) {
 function SummaryCard({
   income,
   expense,
+  ccSpend,
   net,
   scheduledIncome,
   scheduledExpense,
@@ -116,6 +117,7 @@ function SummaryCard({
 }: {
   income: number;
   expense: number;
+  ccSpend: number;
   net: number;
   scheduledIncome: number;
   scheduledExpense: number;
@@ -155,7 +157,7 @@ function SummaryCard({
           <p className="text-sm font-bold text-emerald-600">+{formatCurrency(income, currency)}</p>
         </div>
         <div className="px-3 py-3 text-center">
-          <p className="text-xs text-slate-400 mb-1">Expenses</p>
+          <p className="text-xs text-slate-400 mb-1">Cash out</p>
           <p className="text-sm font-bold text-red-600">-{formatCurrency(expense, currency)}</p>
         </div>
         <div className="px-3 py-3 text-center">
@@ -165,6 +167,18 @@ function SummaryCard({
           </p>
         </div>
       </div>
+
+      {/* Credit card spend strip — excluded from net cash flow */}
+      {ccSpend > 0 && (
+        <div className="flex items-center justify-between px-4 py-2 bg-blue-50 border-t border-blue-100">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">💳</span>
+            <p className="text-xs text-blue-700 font-medium">Credit card spend</p>
+            <span className="text-[10px] text-blue-400 bg-blue-100 px-1.5 py-0.5 rounded font-medium">not in net</span>
+          </div>
+          <p className="text-xs font-bold text-blue-700">-{formatCurrency(ccSpend, currency)}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1127,12 +1141,17 @@ export default function TransactionsPage() {
   const summary = useMemo(() => {
     const completed = filtered.filter((t) => !isTxnScheduled(t));
     const scheduled = filtered.filter((t) => isTxnScheduled(t));
-    // Partially received: received portion goes to income, remainder stays in scheduled
+    // Credit card expenses (allocationType === 'credit_card') don't reduce bank/cash balance —
+    // they increase CC debt tracked in the Credit Cards tab. Exclude them from the cash-flow
+    // summary but track them separately so the user can still see the total.
+    const cashExpenses = completed.filter((t) => t.type === 'expense' && t.allocationType !== 'credit_card');
+    const ccExpenses = completed.filter((t) => t.type === 'expense' && t.allocationType === 'credit_card');
     return {
       income: completed.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountMinorUnits, 0)
         + scheduled.filter((t) => t.type === 'income' && t.status === 'partially_received')
             .reduce((s, t) => s + (t.receivedAmountMinorUnits ?? 0), 0),
-      expense: completed.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountMinorUnits, 0),
+      expense: cashExpenses.reduce((s, t) => s + t.amountMinorUnits, 0),
+      ccSpend: ccExpenses.reduce((s, t) => s + t.amountMinorUnits, 0),
       scheduledIncome: scheduled.filter((t) => t.type === 'income').reduce((s, t) => {
         if (t.status === 'partially_received') return s + (t.amountMinorUnits - (t.receivedAmountMinorUnits ?? 0));
         return s + t.amountMinorUnits;
@@ -1326,6 +1345,7 @@ export default function TransactionsPage() {
             income={summary.income}
             expense={summary.expense}
             net={net}
+            ccSpend={summary.ccSpend}
             scheduledIncome={summary.scheduledIncome}
             scheduledExpense={summary.scheduledExpense}
             count={filtered.length}
