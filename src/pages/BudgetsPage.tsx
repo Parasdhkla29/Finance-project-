@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth, getDate } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, isWithinInterval, getDaysInMonth, getDate } from 'date-fns';
 import { useBudgetStore } from '../store/useBudgetStore';
 import { useTransactionStore } from '../store/useTransactionStore';
 import type { Budget } from '../core/types';
 import { formatCurrency, toMinor } from '../core/types';
+import { useUIStore } from '../store/useUIStore';
 import { ALL_CATEGORIES } from '../core/categorizer';
-import Modal from '../components/ui/Modal';
+import BottomSheet from '../components/ui/BottomSheet';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
@@ -67,6 +68,7 @@ function BudgetForm({ initial, onDone }: { initial?: Budget; onDone: () => void 
 export default function BudgetsPage() {
   const { budgets, load, remove } = useBudgetStore();
   const { transactions, load: loadTxns } = useTransactionStore();
+  const { currency } = useUIStore();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Budget | undefined>();
 
@@ -75,20 +77,27 @@ export default function BudgetsPage() {
   const now = new Date();
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   const daysInMonth = getDaysInMonth(now);
   const dayOfMonth = getDate(now);
   const daysLeft = daysInMonth - dayOfMonth;
   const monthElapsedPct = (dayOfMonth / daysInMonth) * 100;
+  // Day of week: Monday=1 … Sunday=7
+  const dayOfWeek = ((now.getDay() + 6) % 7) + 1;
 
-  // Compute spent per category this month
-  const spentByCategory: Record<string, number> = {};
+  // Compute spent per category for both periods
+  const monthSpent: Record<string, number> = {};
+  const weekSpent: Record<string, number> = {};
   for (const t of transactions) {
-    if (
-      t.type === 'expense' &&
-      !t.deletedAt &&
-      isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })
-    ) {
-      spentByCategory[t.category] = (spentByCategory[t.category] ?? 0) + t.amountMinorUnits;
+    if (t.type === 'expense' && !t.deletedAt) {
+      const txDate = new Date(t.date);
+      if (isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+        monthSpent[t.category] = (monthSpent[t.category] ?? 0) + t.amountMinorUnits;
+      }
+      if (isWithinInterval(txDate, { start: weekStart, end: weekEnd })) {
+        weekSpent[t.category] = (weekSpent[t.category] ?? 0) + t.amountMinorUnits;
+      }
     }
   }
 
@@ -104,7 +113,7 @@ export default function BudgetsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Budgets</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Monthly spending limits by category</p>
+          <p className="text-slate-500 text-sm mt-0.5">Spending limits by category</p>
         </div>
         <Button size="sm" icon={<span>+</span>} onClick={openAdd}>Add Budget</Button>
       </div>
@@ -133,24 +142,31 @@ export default function BudgetsPage() {
       ) : (
         <div className="space-y-3">
           {active.map((budget) => {
-            const spent = spentByCategory[budget.category] ?? 0;
+            const isWeekly = budget.period === 'weekly';
+            const spent = isWeekly
+              ? (weekSpent[budget.category] ?? 0)
+              : (monthSpent[budget.category] ?? 0);
             const pct = budget.amountMinorUnits > 0 ? (spent / budget.amountMinorUnits) * 100 : 0;
             const remaining = budget.amountMinorUnits - spent;
             const isOver = pct >= 100;
             const isWarning = pct >= 80;
 
-            // Pace: are you spending faster or slower than the month's progress?
-            // Expected spend at this point = budget * (dayOfMonth / daysInMonth)
-            const expectedSpent = budget.amountMinorUnits * (dayOfMonth / daysInMonth);
+            // Period-specific time vars
+            const daysInPeriod = isWeekly ? 7 : daysInMonth;
+            const dayOfPeriod = isWeekly ? dayOfWeek : dayOfMonth;
+            const daysLeftInPeriod = isWeekly ? (7 - dayOfWeek) : daysLeft;
+
+            // Pace: are you spending faster or slower than the period's progress?
+            const expectedSpent = budget.amountMinorUnits * (dayOfPeriod / daysInPeriod);
             const paceStatus =
               isOver ? 'over'
               : spent > expectedSpent * 1.1 ? 'fast'
               : spent < expectedSpent * 0.5 ? 'slow'
               : 'on-pace';
 
-            // Projected end-of-month spend
-            const dailyRate = dayOfMonth > 0 ? spent / dayOfMonth : 0;
-            const projectedTotal = dailyRate * daysInMonth;
+            // Projected end-of-period spend
+            const dailyRate = dayOfPeriod > 0 ? spent / dayOfPeriod : 0;
+            const projectedTotal = dailyRate * daysInPeriod;
             const projectedOver = projectedTotal > budget.amountMinorUnits;
 
             return (
@@ -173,10 +189,10 @@ export default function BudgetsPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-slate-900">
-                      {formatCurrency(spent, 'GBP')} / {formatCurrency(budget.amountMinorUnits, 'GBP')}
+                      {formatCurrency(spent, currency)} / {formatCurrency(budget.amountMinorUnits, currency)}
                     </p>
                     <p className={`text-xs mt-0.5 ${isOver ? 'text-red-600' : 'text-slate-400'}`}>
-                      {isOver ? `${formatCurrency(Math.abs(remaining), 'GBP')} over` : `${formatCurrency(remaining, 'GBP')} left`}
+                      {isOver ? `${formatCurrency(Math.abs(remaining), currency)} over` : `${formatCurrency(remaining, currency)} left`}
                     </p>
                   </div>
                 </div>
@@ -191,10 +207,10 @@ export default function BudgetsPage() {
 
                 {/* Temporal context row */}
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-slate-400">{pct.toFixed(0)}% used · {daysLeft}d left</p>
+                  <p className="text-xs text-slate-400">{pct.toFixed(0)}% used · {daysLeftInPeriod}d left</p>
                   {!isOver && dailyRate > 0 && (
                     <p className={`text-xs ${projectedOver ? 'text-amber-600' : 'text-slate-400'}`}>
-                      Projected: {formatCurrency(projectedTotal, 'GBP')}{projectedOver ? ' ⚠ over limit' : ''}
+                      Projected: {formatCurrency(projectedTotal, currency)}{projectedOver ? ' ⚠ over limit' : ''}
                     </p>
                   )}
                 </div>
@@ -209,9 +225,11 @@ export default function BudgetsPage() {
         </div>
       )}
 
-      <Modal open={showForm} onClose={() => { setShowForm(false); setEditing(undefined); }} title={editing ? 'Edit Budget' : 'Create Budget'}>
-        <BudgetForm initial={editing} onDone={() => { setShowForm(false); setEditing(undefined); }} />
-      </Modal>
+      <BottomSheet open={showForm} onClose={() => { setShowForm(false); setEditing(undefined); }} title={editing ? 'Edit Budget' : 'Create Budget'}>
+        <div className="px-5 py-4">
+          <BudgetForm initial={editing} onDone={() => { setShowForm(false); setEditing(undefined); }} />
+        </div>
+      </BottomSheet>
     </div>
   );
 }

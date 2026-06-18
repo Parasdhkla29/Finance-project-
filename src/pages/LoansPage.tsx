@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useLoanStore } from '../store/useLoanStore';
 import type { Loan } from '../core/types';
 import { formatCurrency, toMinor } from '../core/types';
+import { useUIStore } from '../store/useUIStore';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -315,6 +316,7 @@ function PaymentHistoryDropdown({ loan }: { loan: Loan }) {
 
 export default function LoansPage() {
   const { loans, load, remove } = useLoanStore();
+  const { currency } = useUIStore();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Loan | undefined>();
   const [payingLoan, setPayingLoan] = useState<Loan | undefined>();
@@ -346,11 +348,11 @@ export default function LoansPage() {
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <p className="text-xs text-slate-400 uppercase tracking-wide">Owed to you</p>
-          <p className="text-lg font-bold text-emerald-600 mt-1">{formatCurrency(lentTotal, 'GBP')}</p>
+          <p className="text-lg font-bold text-emerald-600 mt-1">{formatCurrency(lentTotal, currency)}</p>
         </Card>
         <Card>
           <p className="text-xs text-slate-400 uppercase tracking-wide">You owe</p>
-          <p className="text-lg font-bold text-red-600 mt-1">{formatCurrency(borrowedTotal, 'GBP')}</p>
+          <p className="text-lg font-bold text-red-600 mt-1">{formatCurrency(borrowedTotal, currency)}</p>
         </Card>
       </div>
 

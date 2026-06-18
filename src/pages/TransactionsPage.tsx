@@ -111,6 +111,7 @@ function SummaryCard({
   scheduledIncome,
   scheduledExpense,
   count,
+  currency,
   breakdownSlot,
 }: {
   income: number;
@@ -119,6 +120,7 @@ function SummaryCard({
   scheduledIncome: number;
   scheduledExpense: number;
   count: number;
+  currency: string;
   breakdownSlot?: React.ReactNode;
 }) {
   return (
@@ -133,7 +135,7 @@ function SummaryCard({
                 net >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}
             >
-              {net >= 0 ? '+' : ''}{formatCurrency(net, 'GBP')}
+              {net >= 0 ? '+' : ''}{formatCurrency(net, currency)}
             </p>
             <p className="text-xs text-slate-400 mt-0.5">Income minus expenses</p>
           </div>
@@ -150,16 +152,16 @@ function SummaryCard({
       <div className="grid grid-cols-3 divide-x divide-slate-100">
         <div className="px-3 py-3 text-center">
           <p className="text-xs text-slate-400 mb-1">Income</p>
-          <p className="text-sm font-bold text-emerald-600">+{formatCurrency(income, 'GBP')}</p>
+          <p className="text-sm font-bold text-emerald-600">+{formatCurrency(income, currency)}</p>
         </div>
         <div className="px-3 py-3 text-center">
           <p className="text-xs text-slate-400 mb-1">Expenses</p>
-          <p className="text-sm font-bold text-red-600">-{formatCurrency(expense, 'GBP')}</p>
+          <p className="text-sm font-bold text-red-600">-{formatCurrency(expense, currency)}</p>
         </div>
         <div className="px-3 py-3 text-center">
           <p className="text-xs text-slate-400 mb-1">Scheduled</p>
           <p className="text-sm font-bold text-purple-600">
-            {formatCurrency(scheduledIncome + scheduledExpense, 'GBP')}
+            {formatCurrency(scheduledIncome + scheduledExpense, currency)}
           </p>
         </div>
       </div>
@@ -1030,7 +1032,7 @@ export default function TransactionsPage() {
   const { transactions, load, remove, markCompleted } = useTransactionStore();
   const { accounts, load: loadAccounts } = useAccountStore();
   const { load: loadGoals } = useGoalStore();
-  const { showAccountBreakdown } = useUIStore();
+  const { showAccountBreakdown, currency } = useUIStore();
 
   // ── Filter state ───────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -1327,6 +1329,7 @@ export default function TransactionsPage() {
             scheduledIncome={summary.scheduledIncome}
             scheduledExpense={summary.scheduledExpense}
             count={filtered.length}
+            currency={currency}
             breakdownSlot={
               showAccountBreakdown ? (
                 <AccountBreakdown

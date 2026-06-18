@@ -4,6 +4,7 @@ import { format, addDays, isWithinInterval } from 'date-fns';
 import { useSubscriptionStore } from '../store/useSubscriptionStore';
 import type { Subscription } from '../core/types';
 import { formatCurrency, toMinor } from '../core/types';
+import { useUIStore } from '../store/useUIStore';
 import { ALL_CATEGORIES } from '../core/categorizer';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -104,6 +105,7 @@ function SubForm({ initial, onDone }: { initial?: Subscription; onDone: () => vo
 
 export default function SubscriptionsPage() {
   const { subscriptions, load, update, remove } = useSubscriptionStore();
+  const { currency } = useUIStore();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Subscription | undefined>();
   const [showInactive, setShowInactive] = useState(false);
@@ -132,11 +134,11 @@ export default function SubscriptionsPage() {
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <p className="text-xs text-slate-400 uppercase tracking-wide">Monthly cost</p>
-          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(Math.round(totalMonthly), 'GBP')}</p>
+          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(Math.round(totalMonthly), currency)}</p>
         </Card>
         <Card>
           <p className="text-xs text-slate-400 uppercase tracking-wide">Annual cost</p>
-          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(Math.round(totalAnnual), 'GBP')}</p>
+          <p className="text-lg font-bold text-amber-600 mt-1">{formatCurrency(Math.round(totalAnnual), currency)}</p>
           <p className="text-xs text-slate-400 mt-0.5">{subscriptions.filter((s) => s.isActive && !s.deletedAt).length} active subscriptions</p>
         </Card>
       </div>
