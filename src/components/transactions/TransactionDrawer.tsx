@@ -249,6 +249,10 @@ export default function TransactionDrawer({
       setNotesError('Notes are required when "Other" is selected.');
       return;
     }
+    if (paymentMode === 'cash' && cashAccounts.length === 0 && type !== 'transfer') {
+      setNotesError('Please add a Cash account in Settings → Accounts before recording cash transactions.');
+      return;
+    }
     setNotesError('');
     const account = activeAccounts.find((a) => a.id === data.accountId);
     const isScheduled = data.status === 'scheduled';
@@ -268,7 +272,9 @@ export default function TransactionDrawer({
     const selectedCC = isCCLinked ? activeCreditCards.find((c) => c.id === selectedCreditCardId) : undefined;
 
     const payload: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> = {
-      accountId: data.accountId,
+      // For CC-store cards: use the card's own ID as accountId so it doesn't
+      // appear in any bank/cash account's balance in AccountBreakdown.
+      accountId: isCCLinked && selectedCC ? selectedCC.id : data.accountId,
       toAccountId: data.type === 'transfer' && data.toAccountId ? data.toAccountId : undefined,
       type: data.type,
       amountMinorUnits: toMinor(parseFloat(data.amount) || 0),
