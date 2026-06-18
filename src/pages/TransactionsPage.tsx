@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback, Fragment } from 'react';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { useTransactionStore } from '../store/useTransactionStore';
 import { useAccountStore } from '../store/useAccountStore';
 import { useGoalStore } from '../store/useGoalStore';
 import { useUIStore } from '../store/useUIStore';
-import type { Transaction } from '../core/types';
+import type { Transaction, PartialPayment } from '../core/types';
 import { formatCurrency, isScheduled as isTxnScheduled } from '../core/types';
 import AccountBreakdown from '../components/transactions/AccountBreakdown';
 import TransactionDrawer from '../components/transactions/TransactionDrawer';
@@ -253,7 +253,10 @@ function TxnCard({
 
               {/* Date + time */}
               <p className="text-xs text-slate-400 mt-1">
-                {format(parseISO(txn.date), 'd MMM')} · {format(parseISO(txn.createdAt), 'h:mm a')}
+                {txn.date.includes('T')
+                  ? format(parseISO(txn.date), 'd MMM · h:mm a')
+                  : `${format(parseISO(txn.date), 'd MMM')} · ${format(parseISO(txn.createdAt), 'h:mm a')}`
+                }
               </p>
 
               {/* Tags */}
@@ -305,7 +308,7 @@ function TxnCard({
   );
 }
 
-// ── Partial payment bottom sheet ──────────────────────────────────────────
+// ── Partial payment methods (shared by installment row + sheet) ──────────
 
 const PARTIAL_PAYMENT_METHODS: Array<{ id: string; label: string; emoji: string }> = [
   { id: 'cash',          label: 'Cash',          emoji: '💵' },
@@ -315,6 +318,57 @@ const PARTIAL_PAYMENT_METHODS: Array<{ id: string; label: string; emoji: string 
   { id: 'wallet',        label: 'Wallet',        emoji: '📱' },
   { id: 'other',         label: 'Other',         emoji: '📌' },
 ];
+
+// ── Partial installment sub-card ─────────────────────────────────────────
+
+function PartialInstallmentRow({
+  payment,
+  txn,
+  index,
+}: {
+  payment: PartialPayment;
+  txn: Transaction;
+  index: number;
+}) {
+  const pm = PARTIAL_PAYMENT_METHODS.find((x) => x.id === payment.paymentMethod);
+  const methodStr = pm ? `${pm.emoji} ${pm.label}` : null;
+  const dateStr = new Date(payment.recordedAt).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+
+  return (
+    <div className="flex items-stretch gap-2 ml-4 mb-1.5">
+      {/* Connector line + dot */}
+      <div className="flex flex-col items-center w-4 shrink-0">
+        <div className="w-px flex-1 bg-slate-200" />
+        <div className="w-2 h-2 rounded-full bg-emerald-300 shrink-0" />
+      </div>
+
+      {/* Card */}
+      <div className="flex-1 flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 shadow-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="shrink-0 px-1.5 py-0.5 bg-emerald-200 text-emerald-800 rounded text-[10px] font-bold tracking-wide">
+            P·{index}
+          </span>
+          {methodStr && (
+            <span className="text-xs text-slate-500 shrink-0">{methodStr}</span>
+          )}
+          {payment.notes && (
+            <span className="text-xs text-slate-400 italic truncate">{payment.notes}</span>
+          )}
+        </div>
+        <div className="text-right shrink-0 ml-2">
+          <p className="text-sm font-bold text-emerald-700">
+            +{formatCurrency(payment.amountMinorUnits, txn.currency)}
+          </p>
+          <p className="text-[10px] text-slate-400">{dateStr}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Partial payment bottom sheet ──────────────────────────────────────────
 
 function PartialPaymentSheet({
   open,
@@ -1292,25 +1346,29 @@ export default function TransactionsPage() {
             {grouped.map(([dateKey, txns]) => (
               <div key={dateKey} className="mb-4">
                 <DateGroupHeader dateKey={dateKey} />
-                {txns.map((t) =>
-                  isTxnScheduled(t) ? (
-                    <ScheduledCard
-                      key={t.id}
-                      txn={t}
-                      onMarkCompleted={() => handleMarkCompleted(t.id, t.type)}
-                      onEdit={() => openDrawer(t.type, t)}
-                      onDelete={() => setConfirmDeleteId(t.id)}
-                      onSuccess={showToast}
-                    />
-                  ) : (
-                    <TxnCard
-                      key={t.id}
-                      txn={t}
-                      onEdit={() => openDrawer(t.type, t)}
-                      onDelete={() => setConfirmDeleteId(t.id)}
-                    />
-                  ),
-                )}
+                {txns.map((t) => (
+                  <Fragment key={t.id}>
+                    {isTxnScheduled(t) ? (
+                      <ScheduledCard
+                        txn={t}
+                        onMarkCompleted={() => handleMarkCompleted(t.id, t.type)}
+                        onEdit={() => openDrawer(t.type, t)}
+                        onDelete={() => setConfirmDeleteId(t.id)}
+                        onSuccess={showToast}
+                      />
+                    ) : (
+                      <TxnCard
+                        txn={t}
+                        onEdit={() => openDrawer(t.type, t)}
+                        onDelete={() => setConfirmDeleteId(t.id)}
+                      />
+                    )}
+                    {/* P·1, P·2 … installment sub-cards */}
+                    {(t.partialPayments?.length ?? 0) > 0 && t.partialPayments!.map((p, idx) => (
+                      <PartialInstallmentRow key={p.id} payment={p} txn={t} index={idx + 1} />
+                    ))}
+                  </Fragment>
+                ))}
               </div>
             ))}
           </div>

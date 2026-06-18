@@ -16,6 +16,7 @@ interface FormData {
   type: 'income' | 'expense' | 'transfer';
   amount: string;
   date: string;
+  time: string;
   accountId: string;
   toAccountId: string;
   category: string;
@@ -133,6 +134,7 @@ export default function TransactionDrawer({
 
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
+  const nowTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   const {
     register,
@@ -146,6 +148,7 @@ export default function TransactionDrawer({
       type: initial?.type ?? initialType,
       amount: initial ? String(initial.amountMinorUnits / 100) : '',
       date: !initScheduled ? (initial?.date?.split('T')[0] ?? todayStr) : todayStr,
+      time: initial?.date?.includes('T') ? initial.date.split('T')[1].slice(0, 5) : nowTimeStr,
       accountId: initial?.accountId ?? defaultAcc,
       toAccountId: initial?.toAccountId ?? '',
       category: initial?.category ?? '',
@@ -179,6 +182,7 @@ export default function TransactionDrawer({
         type: initial?.type ?? initialType,
         amount: initial ? String(initial.amountMinorUnits / 100) : '',
         date: !initScheduled ? (initial?.date?.split('T')[0] ?? todayStr) : todayStr,
+        time: initial?.date?.includes('T') ? initial.date.split('T')[1].slice(0, 5) : nowTimeStr,
         accountId: initial?.accountId ?? defaultAcc,
         toAccountId: initial?.toAccountId ?? '',
         category: initial?.category ?? '',
@@ -261,7 +265,9 @@ export default function TransactionDrawer({
     if (isScheduled) {
       resolvedDate = data.hasFixedDate && data.scheduledDate ? data.scheduledDate : todayStr;
     } else {
-      resolvedDate = data.date || todayStr;
+      const dateBase = data.date || todayStr;
+      const timeBase = data.time || nowTimeStr;
+      resolvedDate = `${dateBase}T${timeBase}`;
     }
 
     const isGoalLinked = !isEdit && type === 'expense' && allocType === 'goal' && !!linkedGoalId;
@@ -420,13 +426,24 @@ export default function TransactionDrawer({
               </div>
             </div>
 
-            {/* ── Date ──────────────────────────────────────────────── */}
+            {/* ── Date & Time ────────────────────────────────────────── */}
             {status === 'completed' && (
               <div className="px-5 pb-4">
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Date <span className="text-red-500">*</span>
+                  Date & Time <span className="text-red-500">*</span>
                 </label>
-                <input type="date" {...register('date', { required: true })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    {...register('date', { required: true })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="time"
+                    {...register('time')}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             )}
 
