@@ -78,7 +78,7 @@ All entities extend `BaseEntity` (`id`, `createdAt`, `updatedAt`, `deletedAt?`).
 
 Goals connect to transactions via `linkedGoalId` on `Transaction` + `allocationType: 'goal'`. When a goal-linked transaction is saved, call `allocateAmount(goalId, amount)`; on delete, call `deallocateAmount(goalId, amount)`.
 
-Credit cards (from `useCreditCardStore`) connect to transactions via `linkedCreditCardId` + `allocationType: 'credit_card'`. When saved, call `addCCTransaction` on the credit card store to update the card's balance and transaction history.
+Credit cards (from `useCreditCardStore`) connect to transactions via `linkedGoalId` (reused to store the card ID) + `allocationType: 'credit_card'`. When saved, call `addCCTransaction` on the credit card store to update the card's balance and transaction history. Note: `linkedGoalId` serves double duty — it holds a goal ID when `allocationType === 'goal'` and a credit card ID when `allocationType === 'credit_card'`.
 
 ### TypeScript Constraints
 
