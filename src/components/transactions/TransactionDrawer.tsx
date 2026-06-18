@@ -222,8 +222,7 @@ export default function TransactionDrawer({
       if (bankAccounts.length > 0) setValue('accountId', bankAccounts[0].id);
     } else if (mode === 'cash') {
       setValue('paymentMethod', 'cash');
-      const cashAcc = cashAccounts[0] ?? activeAccounts[0];
-      if (cashAcc) setValue('accountId', cashAcc.id);
+      if (cashAccounts.length > 0) setValue('accountId', cashAccounts[0].id);
     } else if (mode === 'credit') {
       setValue('paymentMethod', 'card');
       if (creditAccounts.length > 0) {
@@ -600,29 +599,48 @@ export default function TransactionDrawer({
                     )
                   )}
 
-                  {/* Cash: show selected account name */}
+                  {/* Cash: show cash accounts only */}
                   {paymentMode === 'cash' && (
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                      <span className="text-base">💵</span>
-                      <span className="text-sm font-medium text-slate-700">
-                        {activeAccounts.find((a) => a.id === watchAccountId)?.name ?? 'Cash'}
-                      </span>
-                    </div>
+                    cashAccounts.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {cashAccounts.length > 1 && (
+                          <p className="text-xs text-slate-400 mb-1.5">Select cash account</p>
+                        )}
+                        {cashAccounts.map((a) => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setValue('accountId', a.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                              watchAccountId === a.id
+                                ? 'bg-emerald-50 border-emerald-300'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="text-base">💵</span>
+                            <span className={`text-sm font-medium flex-1 truncate ${watchAccountId === a.id ? 'text-emerald-700' : 'text-slate-800'}`}>
+                              {a.name}
+                            </span>
+                            {watchAccountId === a.id && (
+                              <svg className="h-4 w-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-2.5">
+                        No cash account added yet — go to Settings → Accounts.
+                      </p>
+                    )
                   )}
 
-                  {/* Other: mandatory notes notice + account selector */}
+                  {/* Other: only the mandatory notes notice */}
                   {paymentMode === 'other' && (
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl">
-                        <span className="text-amber-500 text-sm mt-0.5">⚠</span>
-                        <p className="text-xs text-amber-700 font-medium">Notes are required for "Other" payments.</p>
-                      </div>
-                      <select
-                        {...register('accountId')}
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
+                    <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl">
+                      <span className="text-amber-500 text-sm mt-0.5">⚠</span>
+                      <p className="text-xs text-amber-700 font-medium">Notes are required for "Other" payments — describe below.</p>
                     </div>
                   )}
                 </div>
