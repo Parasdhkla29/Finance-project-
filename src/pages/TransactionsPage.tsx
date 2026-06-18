@@ -380,13 +380,18 @@ function PartialPaymentSheet({
   open: boolean;
   onClose: () => void;
   txn: Transaction;
-  onSave: (amount: number, notes: string, paymentMethod?: string, linkedAccountId?: string) => Promise<void>;
+  onSave: (amount: number, notes: string, paymentMethod?: string, linkedAccountId?: string, recordedAt?: string) => Promise<void>;
   onSaved?: (msg: string) => void;
 }) {
   const [amountStr, setAmountStr] = useState('');
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [linkedAccountId, setLinkedAccountId] = useState('');
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [paymentTime, setPaymentTime] = useState(() => {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { accounts } = useAccountStore();
@@ -419,7 +424,8 @@ function PartialPaymentSheet({
     setSaving(true);
     setError('');
     try {
-      await onSave(minor, notes, paymentMethod || undefined, linkedAccountId || undefined);
+      const recordedAt = paymentDate && paymentTime ? `${paymentDate}T${paymentTime}` : undefined;
+      await onSave(minor, notes, paymentMethod || undefined, linkedAccountId || undefined, recordedAt);
       const newReceived = (txn.receivedAmountMinorUnits ?? 0) + minor;
       const isFull = newReceived >= txn.amountMinorUnits;
       onSaved?.(isFull ? '✓ Income received in full' : '✓ Partial payment saved');
@@ -427,6 +433,9 @@ function PartialPaymentSheet({
       setNotes('');
       setPaymentMethod('');
       setLinkedAccountId('');
+      const n = new Date();
+      setPaymentDate(n.toISOString().split('T')[0]);
+      setPaymentTime(`${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`);
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Save failed';
@@ -574,6 +583,27 @@ function PartialPaymentSheet({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Date & Time */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+            Date & Time
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+            />
+            <input
+              type="time"
+              value={paymentTime}
+              onChange={(e) => setPaymentTime(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+            />
+          </div>
         </div>
 
         {/* Notes */}
@@ -896,7 +926,7 @@ function ScheduledCard({
           open={showPartialSheet}
           onClose={() => setShowPartialSheet(false)}
           txn={txn}
-          onSave={(amount, notes, method, acctId) => addPartialPayment(txn.id, amount, notes, method, acctId)}
+          onSave={(amount, notes, method, acctId, recordedAt) => addPartialPayment(txn.id, amount, notes, method, acctId, recordedAt)}
           onSaved={(msg) => onSuccess?.(msg)}
         />
       )}
