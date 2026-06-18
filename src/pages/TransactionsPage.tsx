@@ -127,7 +127,7 @@ function SummaryCard({
       <div className="px-4 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Net Balance</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Net Cash Flow</p>
             <p
               className={`text-2xl font-bold mt-0.5 ${
                 net >= 0 ? 'text-emerald-600' : 'text-red-600'
@@ -135,6 +135,7 @@ function SummaryCard({
             >
               {net >= 0 ? '+' : ''}{formatCurrency(net, 'GBP')}
             </p>
+            <p className="text-xs text-slate-400 mt-0.5">Income minus expenses</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-400">{count} transaction{count !== 1 ? 's' : ''}</p>
