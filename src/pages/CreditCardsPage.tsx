@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useCreditCardStore } from '../store/useCreditCardStore';
 import type { CreditCard } from '../core/types';
 import { formatCurrency, toMinor } from '../core/types';
-import Modal from '../components/ui/Modal';
+import BottomSheet from '../components/ui/BottomSheet';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
@@ -48,33 +48,39 @@ function CardVisual({ card }: { card: CreditCard }) {
     card.network === 'amex' ? 'AMEX' : '●●';
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-300 p-5 min-h-[140px] bg-gradient-to-br from-slate-700 to-slate-900">
+    <div
+      className="relative overflow-hidden rounded-2xl p-5 min-h-[140px]"
+      style={{ backgroundColor: card.color ?? '#38bdf8' }}
+    >
+      {/* Gradient overlay for depth */}
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/40 pointer-events-none" />
+
       {/* Decorative circles */}
-      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-sky-500/5 pointer-events-none" />
-      <div className="absolute -bottom-8 right-8 w-24 h-24 rounded-full bg-purple-500/5 pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 pointer-events-none" />
+      <div className="absolute -bottom-8 right-8 w-24 h-24 rounded-full bg-white/5 pointer-events-none" />
 
       {/* Chip */}
-      <div className="w-8 h-6 rounded bg-gradient-to-br from-amber-400 to-amber-600 mb-5 relative z-10" />
+      <div className="w-8 h-6 rounded bg-gradient-to-br from-amber-300 to-amber-500 mb-5 relative z-10" />
 
       {/* Masked number */}
-      <p className="font-mono text-sm tracking-widest text-slate-500 mb-3 relative z-10">
+      <p className="font-mono text-sm tracking-widest text-white/70 mb-3 relative z-10">
         •••• •••• •••• {card.last4}
       </p>
 
       {/* Bottom row */}
       <div className="flex items-end justify-between relative z-10">
         <div>
-          <p className="text-sm font-semibold tracking-wide text-slate-900 uppercase">{card.name}</p>
-          <p className="text-xs text-slate-400 uppercase tracking-wide">
-            <span className="opacity-60">EXPIRES</span> {card.expiry}
+          <p className="text-sm font-semibold tracking-wide text-white uppercase">{card.name}</p>
+          <p className="text-xs text-white/60 uppercase tracking-wide">
+            <span>EXPIRES</span> {card.expiry}
           </p>
         </div>
-        <p className="text-xl font-bold text-slate-500 opacity-50">{networkLabel}</p>
+        <p className="text-xl font-bold text-white/80">{networkLabel}</p>
       </div>
 
       {/* Overdue badge */}
       {card.status === 'overdue' && (
-        <div className="absolute top-3 right-3 bg-red-900/40 border border-red-700 rounded px-2 py-0.5 text-xs font-bold text-red-600 tracking-widest uppercase">
+        <div className="absolute top-3 right-3 bg-red-900/60 border border-red-400 rounded px-2 py-0.5 text-xs font-bold text-red-200 tracking-widest uppercase">
           Payment Due
         </div>
       )}
@@ -83,6 +89,12 @@ function CardVisual({ card }: { card: CreditCard }) {
 }
 
 // ── Add / Edit card form ──────────────────────────────────────────────────────
+
+const CARD_COLORS = [
+  '#38bdf8', '#818cf8', '#f472b6', '#34d399',
+  '#fbbf24', '#f87171', '#a78bfa', '#2dd4bf',
+  '#fb923c', '#4ade80', '#e879f9', '#60a5fa',
+];
 
 interface CardFormData {
   name: string;
@@ -101,7 +113,7 @@ interface CardFormData {
 
 function CardForm({ initial, onDone }: { initial?: CreditCard; onDone: () => void }) {
   const { add, update } = useCreditCardStore();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CardFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<CardFormData>({
     defaultValues: {
       name: initial?.name ?? '',
       last4: initial?.last4 ?? '',
@@ -117,6 +129,7 @@ function CardForm({ initial, onDone }: { initial?: CreditCard; onDone: () => voi
       notes: initial?.notes ?? '',
     },
   });
+  const watchedColor = watch('color');
 
   async function onSubmit(data: CardFormData) {
     const payload = {
@@ -179,6 +192,30 @@ function CardForm({ initial, onDone }: { initial?: CreditCard; onDone: () => voi
       </div>
       <Input label="Payment Due Date" type="date" required error={errors.dueDate?.message}
         {...register('dueDate', { required: 'Required' })} />
+      <div>
+        <p className="text-xs font-semibold text-slate-600 mb-2">Card Colour</p>
+        <div className="flex flex-wrap gap-2 items-center">
+          {CARD_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setValue('color', c)}
+              className="w-7 h-7 rounded-full transition-all"
+              style={{
+                backgroundColor: c,
+                outline: watchedColor === c ? `3px solid ${c}` : '3px solid transparent',
+                outlineOffset: '2px',
+              }}
+            />
+          ))}
+          <input
+            type="color"
+            {...register('color')}
+            title="Custom colour"
+            className="w-7 h-7 rounded-full cursor-pointer border border-slate-300 p-0.5 bg-white"
+          />
+        </div>
+      </div>
       <Textarea label="Notes" {...register('notes')} />
       <div className="flex gap-2 pt-2">
         <Button type="submit" loading={isSubmitting} className="flex-1">
@@ -550,51 +587,41 @@ export default function CreditCardsPage() {
                 )}
               </div>
 
-              {/* Feature list */}
-              <SectionLabel>🗂 Features</SectionLabel>
-              {[
-                ['Balance transfers', 'Track promotional 0% periods and fees'],
-                ['Cash advances', 'Flag high-APR cash withdrawals separately'],
-                ['Foreign transactions', 'Mark FX fees; show in original currency'],
-                ['Rewards & points', 'Track cashback, Avios, Nectar, or points'],
-                ['Direct debit setup', 'Log full/min/custom DD amount and date'],
-                ['Statement history', 'Monthly statements with export'],
-                ['Credit score impact', 'Utilisation warning when above 30%'],
-                ['Fraud alerts', 'Flag unusual transactions for review'],
-              ].map(([title, desc], i) => (
-                <Card key={i} onClick={() => showToast(`${title} — coming soon`)} className="cursor-pointer py-3">
-                  <p className="text-xs font-semibold text-slate-700">{title}</p>
-                  <p className="text-xs text-slate-400 leading-relaxed mt-0.5">{desc}</p>
-                </Card>
-              ))}
             </>
           )}
         </>
       )}
 
-      {/* Modals */}
-      <Modal
+      {/* Bottom sheets */}
+      <BottomSheet
         open={showAddCard}
         onClose={() => { setShowAddCard(false); setEditingCard(undefined); }}
         title={editingCard ? 'Edit Card' : 'Add Credit Card'}
+        fullScreen
       >
-        <CardForm
-          initial={editingCard}
-          onDone={() => { setShowAddCard(false); setEditingCard(undefined); }}
-        />
-      </Modal>
+        <div className="px-5 py-4">
+          <CardForm
+            initial={editingCard}
+            onDone={() => { setShowAddCard(false); setEditingCard(undefined); }}
+          />
+        </div>
+      </BottomSheet>
 
-      <Modal open={!!payingCard} onClose={() => setPayingCard(undefined)} title="Record Payment" size="sm">
+      <BottomSheet open={!!payingCard} onClose={() => setPayingCard(undefined)} title="Record Payment">
         {payingCard && (
-          <RecordPaymentForm card={payingCard} onDone={() => { setPayingCard(undefined); showToast('Payment recorded'); }} />
+          <div className="px-5 py-4">
+            <RecordPaymentForm card={payingCard} onDone={() => { setPayingCard(undefined); showToast('Payment recorded'); }} />
+          </div>
         )}
-      </Modal>
+      </BottomSheet>
 
-      <Modal open={!!spendCard} onClose={() => setSpendCard(undefined)} title="Add Spend" size="sm">
+      <BottomSheet open={!!spendCard} onClose={() => setSpendCard(undefined)} title="Add Spend">
         {spendCard && (
-          <AddSpendForm card={spendCard} onDone={() => { setSpendCard(undefined); showToast('Spend added'); }} />
+          <div className="px-5 py-4">
+            <AddSpendForm card={spendCard} onDone={() => { setSpendCard(undefined); showToast('Spend added'); }} />
+          </div>
         )}
-      </Modal>
+      </BottomSheet>
 
       {/* Toast */}
       {toast && (
