@@ -88,6 +88,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   markFullReceived: async (id) => {
     const userId = getCurrentUserId();
     const txn = get().transactions.find((t) => t.id === id);
+    if (!txn || txn.status === 'completed') return; // already done, no-op
     const original = txn ? { ...txn } : null;
     const receivedAt = now();
     const today = new Date().toISOString().split('T')[0];
@@ -121,7 +122,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   addPartialPayment: async (id, amountMinorUnits, notes, paymentMethod, linkedAccountId) => {
     const userId = getCurrentUserId();
     const txn = get().transactions.find((t) => t.id === id);
-    if (!txn) return;
+    if (!txn || txn.status === 'completed') return; // already fully received, no-op
     const original = { ...txn };
 
     const payment: PartialPayment = {
@@ -149,6 +150,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         date: today,
         completedAt: receivedAt,
         receivedAt,
+        hasFixedScheduleDate: undefined,
       }),
     };
 

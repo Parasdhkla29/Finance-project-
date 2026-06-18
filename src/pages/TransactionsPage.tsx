@@ -338,7 +338,8 @@ function PartialPaymentSheet({
   const { accounts } = useAccountStore();
 
   const received = txn.receivedAmountMinorUnits ?? 0;
-  const remaining = txn.amountMinorUnits - received;
+  const remaining = Math.max(0, txn.amountMinorUnits - received);
+  const alreadyFull = txn.status === 'completed' || remaining <= 0;
 
   // Bank accounts eligible for linking (exclude credit + cash)
   const bankAccounts = accounts.filter(
@@ -407,7 +408,7 @@ function PartialPaymentSheet({
             {[
               { label: 'Total',     value: formatCurrency(txn.amountMinorUnits, txn.currency), color: 'text-slate-700' },
               { label: 'Received',  value: formatCurrency(received, txn.currency),             color: 'text-emerald-600' },
-              { label: 'Remaining', value: formatCurrency(remaining, txn.currency),            color: 'text-amber-600' },
+              { label: 'Remaining', value: formatCurrency(remaining, txn.currency),            color: remaining === 0 ? 'text-emerald-600' : 'text-amber-600' },
             ].map(({ label, value, color }) => (
               <div key={label} className="px-3 py-2.5 text-center">
                 <p className="text-xs text-slate-400 mb-0.5">{label}</p>
@@ -423,6 +424,20 @@ function PartialPaymentSheet({
           )}
         </div>
 
+        {/* Already fully received — no more input needed */}
+        {alreadyFull && (
+          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+            <span className="text-2xl">✓</span>
+            <div>
+              <p className="text-sm font-bold text-emerald-700">Received in full</p>
+              <p className="text-xs text-slate-500 mt-0.5">Nothing more to record for this payment.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Amount input — only shown when there is still something to receive */}
+        {!alreadyFull && (
+        <>
         {/* Amount input */}
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
@@ -521,7 +536,10 @@ function PartialPaymentSheet({
           />
         </div>
 
-        {/* Payment history */}
+        </>
+        )}
+
+        {/* Payment history — always shown */}
         {(txn.partialPayments?.length ?? 0) > 0 && (
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Payment History</p>
@@ -561,13 +579,15 @@ function PartialPaymentSheet({
           </div>
         )}
 
-        <button
-          onClick={handleSave}
-          disabled={saving || !amountStr}
-          className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-sm font-bold tracking-wide disabled:opacity-40 active:bg-emerald-700 transition-colors"
-        >
-          {saving ? 'Saving…' : 'Save Partial Payment'}
-        </button>
+        {!alreadyFull && (
+          <button
+            onClick={handleSave}
+            disabled={saving || !amountStr}
+            className="w-full py-3.5 rounded-xl bg-emerald-600 text-white text-sm font-bold tracking-wide disabled:opacity-40 active:bg-emerald-700 transition-colors"
+          >
+            {saving ? 'Saving…' : 'Save Partial Payment'}
+          </button>
+        )}
       </div>
     </BottomSheet>
   );
