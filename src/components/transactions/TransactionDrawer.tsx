@@ -105,7 +105,7 @@ export default function TransactionDrawer({
   const { add, update } = useTransactionStore();
   const { goals, load: loadGoals, allocateAmount } = useGoalStore();
   const { defaultAccountId } = useUIStore();
-  const { cards: creditCards, addTransaction: addCCTransaction } = useCreditCardStore();
+  const { cards: creditCards, load: loadCreditCards, addTransaction: addCCTransaction } = useCreditCardStore();
   const [catSheetOpen, setCatSheetOpen] = useState(false);
   const [selectedCreditCardId, setSelectedCreditCardId] = useState('');
 
@@ -174,6 +174,7 @@ export default function TransactionDrawer({
   useEffect(() => {
     if (open) {
       loadGoals();
+      loadCreditCards();
       reset({
         type: initial?.type ?? initialType,
         amount: initial ? String(initial.amountMinorUnits / 100) : '',
